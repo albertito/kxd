@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# Script to use as a crypttab keyscript, to automatically get keys with kxc.
+# It will use the configuration from /etc/kxc/.
+#
+# The only argument is the base name of the configuration.
+
+CONFIG_BASE="/etc/kxc"
+
+CLIENT_CERT="${CONFIG_BASE}/cert.pem"
+CLIENT_KEY="${CONFIG_BASE}/key.pem"
+SERVER_CERT="${CONFIG_BASE}/${1}.server_cert.pem"
+SERVER_URL=$(cat "${CONFIG_BASE}/${1}.url")
+
+# Find the binary. We search because it can be in one place in the initramfs,
+# and in another in the normal distribution, and we want to support both
+# easily.
+for KXC in /bin/kxc /sbin/kxc /usr/bin/kxc /usr/sbin/kxc; do
+	if [ -x $KXC ]; then
+		break;
+	fi
+done
+
+exec $KXC \
+	--client_cert=$CLIENT_CERT \
+	--client_key=$CLIENT_KEY \
+	--server_cert=$SERVER_CERT \
+	$SERVER_URL
+

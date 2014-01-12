@@ -1,0 +1,10 @@
+[Unit]
+Description = Key exchange daemon
+
+[Service]
+EnvironmentFile = /etc/default/kxd
+ExecStart = /usr/bin/kxd $OPTS
+Type = simple
+
+[Install]
+WantedBy = multi-user.target

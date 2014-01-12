@@ -1,0 +1,36 @@
+#!/bin/bash
+#
+# Create a basic but functional kxd configuration.
+#
+# This script creates the /etc/kxd directory, and generates a certificate for
+# the server to use.
+#
+# It should be run under the same user as kxd itself.
+
+set -e
+
+# Create the base configuration directory.
+echo "Creating directories (/etc/kxd/)"
+mkdir -p /etc/kxd/
+
+# And the data directory where the keys are stored.
+mkdir -p /etc/kxd/data
+
+# Create a private key for the server.
+if ! [ -e /etc/kxd/key.pem ]; then
+	echo "Generating private key (/etc/kxd/key.pem)"
+	openssl genrsa -out /etc/kxd/key.pem 2048
+	chmod 400 /etc/kxd/key.pem
+else
+	echo "Private key already exists (/etc/kxd/key.pem)"
+fi
+
+# And a self-signed certificate.
+if ! [ -e /etc/kxd/cert.pem ]; then
+	echo "Generating certificate (/etc/kxd/cert.pem)"
+	openssl req -new -x509 -batch \
+		-subj "/organizationalUnitName=kxd@$HOSTNAME/" \
+		-key /etc/kxd/key.pem -out /etc/kxd/cert.pem
+else
+	echo "Certificate already exists (/etc/kxd/cert.pem)"
+fi

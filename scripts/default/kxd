@@ -1,0 +1,11 @@
+# Options for kxd.
+
+# Set this if you don't want the daemon to be started automatically.
+# Note this is only useful for sysv-like init; systemd will ignore it (use
+# "sysctl enable/disable" instead).
+#DISABLE=1
+
+# Set kxd options here.
+# OPTS="--smtp_addr example.org:25"
+OPTS=""
+

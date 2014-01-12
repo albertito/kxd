@@ -1,0 +1,46 @@
+
+These are scripts for integration with cryptsetup (and initramfs).
+
+They are tested on a Debian install, so they may not be vendor-neutral
+although they should work with an standard initramfs-tools and cryptsetup
+environment.
+
+For an example of how to use it, see doc/quick_start.rst.
+
+
+What if something goes wrong
+============================
+
+If the key fetch fails or is incorrect it will be retried, and after 3
+attempts, it will give up and return an initramfs prompt, which you can use to
+manually recover.
+
+In modern Debian installs, you can just unlock the device (for example using
+"cryptsetup luksOpen /dev/sdXX sdXX_crypt"), and then exit.
+
+The init scripts will recognise they can now proceed with the usual boot
+process.
+
+
+How does it work
+================
+
+The first part of the work happens when update-initramfs runs:
+
+ - The initramfs hook script copies the kxc binary and all the configuration
+   from /etc/kxc.
+ - The standard cryptsetup hook will copy kxc-cryptsetup if it sees it
+   appearing in /etc/crypttab.
+ - The premount-net script will be copied.
+
+Then, when the machine boots:
+
+ - Before attempting to mount root, the premount-net script will run,
+   configure networking, and create a minimal /etc/resolv.conf.
+ - When attempting to mount root, assuming it is encrypted and properly
+   configured, the cryptsetup scripts will invoke the keyfile, kxc-cryptsetup.
+ - kxc-cryptsetup will run the kxc client with the right configuration taken
+   from /etc/kxc.
+ - The device is unlocked with the key, and boot continues as usual.
+
+

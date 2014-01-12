@@ -1,0 +1,328 @@
+#!/usr/bin/env python
+
+"""
+Tests for kxd and kxc
+---------------------
+
+This file contains various integration and validation tests for kxc and kxd.
+
+It will create different test configurations and run the compiled server and
+client under various conditions, to make sure they behave as intended.
+"""
+
+# NOTE: Please run "pylint --rcfile=.pylintrc run_tests" after making changes,
+# to make sure the file has a reasonably uniform coding style.
+
+
+import httplib
+import os
+import platform
+import shutil
+import socket
+import ssl
+import subprocess
+import tempfile
+import time
+import unittest
+
+
+############################################################
+# Test infrastructure.
+#
+# These functions and classes are used to make the individual tests easier to
+# write.  For the individual test cases, see below.
+
+# Path to our built binaries; used to run the server and client for testing
+# purposes.
+BINS = os.path.abspath(
+        os.path.dirname(os.path.realpath(__file__)) + "/../out")
+
+DEVNULL = open("/dev/null", "w")
+
+TEMPDIR = "/does/not/exist"
+
+
+def setUpModule():    # pylint: disable=invalid-name
+    if not os.path.isfile(BINS + "/kxd"):
+        raise RuntimeError("kxd not found at " + BINS + "/kxd")
+    if not os.path.isfile(BINS + "/kxc"):
+        raise RuntimeError("kxc not found at " + BINS + "/kxc")
+
+    global TEMPDIR    # pylint: disable=global-statement
+    TEMPDIR = tempfile.mkdtemp(prefix="kxdtest-")
+
+
+def tearDownModule():   # pylint: disable=invalid-name
+    # Remove the temporary directory only on success.
+    # Be extra paranoid about removing.
+    # TODO: Only remove on success.
+    if len(TEMPDIR) > 10 and not TEMPDIR.startswith("/home"):
+        shutil.rmtree(TEMPDIR)
+
+
+def gen_certs(path):
+    subprocess.check_call(
+        ["openssl", "genrsa", "-out", "%s/key.pem" % path, "2048"],
+        stdout=DEVNULL, stderr=DEVNULL)
+    subprocess.check_call(
+        ["openssl", "req", "-new", "-x509", "-batch",
+         "-subj", "/organizationalUnitName=kxd-tests:%s@%s" % (
+            os.getlogin(), platform.node()),
+         "-key", "%s/key.pem" % path,
+         "-out", "%s/cert.pem" % path],
+        stdout=DEVNULL, stderr=DEVNULL)
+
+
+class Config(object):
+    def __init__(self):
+        # Note we create this temporary path but never delete it.
+        # This is intentional, as we rather leave a test file around, than
+        # risk a bug doing a harmful recursive delete.
+        self.path = tempfile.mkdtemp(prefix="config-", dir=TEMPDIR)
+        print "Using temporary path", self.path
+
+    def gen_certs(self):
+        gen_certs(self.path)
+
+    def cert_path(self):
+        return self.path + "/cert.pem"
+
+    def key_path(self):
+        return self.path + "/key.pem"
+
+    def cert(self):
+        return open(self.path + "/cert.pem").read()
+
+
+class ServerConfig(Config):
+    def __init__(self):
+        Config.__init__(self)
+        self.keys = {}
+
+    def new_key(self, name, allowed_clients=None, allowed_hosts=None):
+        self.keys[name] = os.urandom(1024)
+        key_path = self.path + "/data/" + name + "/"
+        if not os.path.isdir(key_path):
+            os.makedirs(key_path)
+        open(key_path + "key", "w").write(self.keys[name])
+
+        if allowed_clients is not None:
+            cfd = open(key_path + "/allowed_clients", "a")
+            for cli in allowed_clients:
+                cfd.write(cli)
+
+        if allowed_hosts is not None:
+            hfd = open(key_path + "/allowed_hosts", "a")
+            for host in allowed_hosts:
+                hfd.write(host + "\n")
+
+
+class ClientConfig(Config):
+    def __init__(self):
+        Config.__init__(self)
+        self.gen_certs()
+
+    def call(self, server_cert, url):
+        args = [BINS + "/kxc",
+                "--client_cert=%s/cert.pem" % self.path,
+                "--client_key=%s/key.pem" % self.path,
+                "--server_cert=%s" % server_cert,
+                url]
+        return subprocess.check_output(args, stderr=subprocess.STDOUT)
+
+
+def launch_daemon(cfg):
+    args = [BINS + "/kxd",
+            "--data_dir=%s/data" % cfg,
+            "--key=%s/key.pem" % cfg,
+            "--cert=%s/cert.pem" % cfg,
+            "--logfile=%s/log" % cfg]
+    return subprocess.Popen(args)
+
+
+class TestCase(unittest.TestCase):
+    def setUp(self):
+        self.server = ServerConfig()
+        self.server.gen_certs()
+        self.daemon = launch_daemon(self.server.path)
+
+        self.client = ClientConfig()
+
+        # Wait for the server to start accepting connections.
+        deadline = time.time() + 5
+        while time.time() < deadline:
+            try:
+                socket.create_connection(("localhost", 19840), timeout=5)
+                break
+            except socket.error:
+                continue
+        else:
+            self.fail("Timeout waiting for the server")
+
+    def tearDown(self):
+        self.daemon.kill()
+
+    # pylint: disable=invalid-name
+    def assertClientFails(self, url, regexp, client=None):
+        if client is None:
+            client = self.client
+
+        try:
+            client.call(self.server.cert_path(), url)
+        except subprocess.CalledProcessError as err:
+            self.assertRegexpMatches(err.output, regexp)
+        else:
+            self.fail("Client call did not fail as expected")
+
+
+############################################################
+# Test cases.
+#
+
+class Simple(TestCase):
+    """Simple test cases for common (mis)configurations."""
+
+    def test_simple(self):
+        self.server.new_key("k1",
+                allowed_clients=[self.client.cert()],
+                allowed_hosts=["localhost"])
+        key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
+        self.assertEquals(key, self.server.keys["k1"])
+
+    def test_404(self):
+        self.assertClientFails("kxd://localhost/k1", "404 Not Found")
+
+    def test_no_client_cert(self):
+        self.server.new_key("k1", allowed_hosts=["localhost"])
+        self.assertClientFails("kxd://localhost/k1",
+                "403 Forbidden.*No allowed certificate found")
+
+    def test_host_not_allowed(self):
+        self.server.new_key("k1",
+                allowed_clients=[self.client.cert()],
+                allowed_hosts=[])
+        self.assertClientFails("kxd://localhost/k1",
+                "403 Forbidden.*Host not allowed")
+
+    def test_not_allowed(self):
+        self.server.new_key("k1")
+        # We don't restrict the reason of failure, that's not defined in this
+        # case, as it could be either the host or the cert that are validated
+        # first.
+        self.assertClientFails("kxd://localhost/k1", "403 Forbidden")
+
+
+class Multiples(TestCase):
+    """Tests for multiple clients and keys."""
+
+    def setUp(self):
+        TestCase.setUp(self)
+        self.client2 = ClientConfig()
+
+    def test_two_clients(self):
+        self.server.new_key("k1",
+                allowed_clients=[self.client.cert(), self.client2.cert()],
+                allowed_hosts=["localhost"])
+        key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
+        self.assertEquals(key, self.server.keys["k1"])
+
+        key = self.client2.call(self.server.cert_path(), "kxd://localhost/k1")
+        self.assertEquals(key, self.server.keys["k1"])
+
+    def test_one_client_allowed(self):
+        self.server.new_key("k1",
+                allowed_clients=[self.client.cert()],
+                allowed_hosts=["localhost"])
+        key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
+        self.assertEquals(key, self.server.keys["k1"])
+
+        self.assertClientFails("kxd://localhost/k1",
+                "403 Forbidden.*No allowed certificate found",
+                client=self.client2)
+
+    def test_many_keys(self):
+        keys = ["a", "d/e", "a/b/c", "d/"]
+        for key in keys:
+            self.server.new_key(key,
+                    allowed_clients=[self.client.cert(), self.client2.cert()],
+                    allowed_hosts=["localhost"])
+
+        for key in keys:
+            data = self.client.call(self.server.cert_path(),
+                    "kxd://localhost/%s" % key)
+            self.assertEquals(data, self.server.keys[key])
+
+            data = self.client2.call(self.server.cert_path(),
+                    "kxd://localhost/%s" % key)
+            self.assertEquals(data, self.server.keys[key])
+
+        self.assertClientFails("kxd://localhost/a/b", "404 Not Found")
+
+
+class TrickyRequests(TestCase):
+    """Tests for tricky requests."""
+
+    def test_no_local_cert(self):
+        conn = httplib.HTTPSConnection("localhost", 19840)
+        try:
+            conn.request("GET", "/v1/")
+        except ssl.SSLError as err:
+            self.assertRegexpMatches(str(err), "alert bad certificate")
+        else:
+            self.fail("Client call did not fail as expected")
+
+    def test_dotdot(self):
+        conn = httplib.HTTPSConnection("localhost", 19840,
+                key_file=self.client.key_path(),
+                cert_file=self.client.cert_path())
+        conn.request("GET", "/v1/a/../b")
+        response = conn.getresponse()
+
+        # Go's http server intercepts these and gives us a 301 Moved
+        # Permanently.
+        self.assertEquals(response.status, 301)
+
+    def test_server_cert(self):
+        rawsock = socket.create_connection(("localhost", 19840))
+        sock = ssl.wrap_socket(rawsock,
+                keyfile=self.client.key_path(),
+                certfile=self.client.cert_path())
+
+        # We don't check the cipher itself, as it depends on the environment,
+        # but we should be using > 128 bit secrets.
+        self.assertTrue(sock.cipher()[2] > 128)
+
+        server_cert = ssl.DER_cert_to_PEM_cert(
+                sock.getpeercert(binary_form=True))
+        self.assertEquals(server_cert, self.server.cert())
+
+
+class BrokenServerConfig(TestCase):
+    """Tests for a broken server config."""
+
+    def test_broken_client_certs(self):
+        self.server.new_key("k1",
+                allowed_clients=[self.client.cert()],
+                allowed_hosts=["localhost"])
+
+        # Corrupt the client certificate.
+        cfd = open(self.server.path + "/data/k1/allowed_clients", "r+")
+        for _ in range(4):
+            cfd.readline()
+        cfd.write('+/+BROKEN+/+')
+        cfd.close()
+
+        self.assertClientFails("kxd://localhost/k1",
+                "500 Internal Server Error.*Error loading certs")
+
+    def test_missing_key(self):
+        self.server.new_key("k1",
+                allowed_clients=[self.client.cert()],
+                allowed_hosts=["localhost"])
+
+        os.unlink(self.server.path + "/data/k1/key")
+        self.assertClientFails("kxd://localhost/k1", "404 Not Found")
+
+
+if __name__ == "__main__":
+    unittest.main()

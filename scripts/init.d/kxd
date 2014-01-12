@@ -1,0 +1,82 @@
+#! /bin/sh
+
+### BEGIN INIT INFO
+# Provides:          kxd
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      
+# Short-Description: key exchange daemon
+# Description:       kxd is a program that serves keys to authorized clients.
+### END INIT INFO
+
+DAEMON=/usr/bin/kxd
+DEFAULTS_FILE=/etc/default/kxd
+
+# These variables can be overriden in the defaults file.
+DISABLE=
+OPTS=''
+PID_FILE=/var/run/kxd.pid
+
+test -x $DAEMON || exit 0
+
+. /lib/lsb/init-functions
+
+if [ -s $DEFAULTS_FILE ]; then
+    . $DEFAULTS_FILE
+fi
+
+
+case "$1" in
+  start)
+	if [ "$DISABLE" != "" ]; then
+		log_warning_msg "kxd not enabled in $DEFAULTS_FILE"
+		exit 0
+	fi
+
+	log_daemon_msg "Starting kxd"
+	start-stop-daemon --start --quiet --background \
+		--pidfile $PID_FILE --make-pidfile \
+		--exec $DAEMON -- $OPTS
+	case "$?" in
+	  0)
+		  log_progress_msg "kxd"
+		  log_end_msg 0
+		  exit 0
+		  ;;
+	  1)
+		  log_warning_msg "already running"
+		  exit 0
+		  ;;
+	  *)
+		  log_failure_msg "failed to start daemon"
+		  exit 1
+		  ;;
+	esac
+
+	;;
+
+  stop)
+	log_daemon_msg "Stopping kxd daemon" "kxd"
+	start-stop-daemon --stop --quiet --oknodo --pidfile $PID_FILE
+	log_end_msg $?
+	rm -f $PID_FILE
+	;;
+
+  restart)
+	set +e
+	$0 stop
+	sleep 2
+	$0 start
+	;;
+
+  status)
+	status_of_proc -p $PID_FILE "$DAEMON" kxd
+	exit $?
+	;;
+  *)
+	echo "Usage: /etc/init.d/kxd {start|stop|restart|status}"
+	exit 1
+esac
+
+exit 0

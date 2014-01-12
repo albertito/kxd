@@ -1,0 +1,27 @@
+#!/bin/sh
+
+# Configure networking before mounting.
+
+PREREQ=""
+
+prereqs()
+{
+	echo "$PREREQ"
+}
+
+case $1 in
+# get pre-requisites
+prereqs)
+        prereqs
+        exit 0
+        ;;
+esac
+
+. /scripts/functions
+
+configure_networking
+
+# Configure a basic resolv.conf based on our networking.
+echo "nameserver $IPV4DNS0" >> /etc/resolv.conf
+
+

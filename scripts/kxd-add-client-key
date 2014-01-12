@@ -1,0 +1,37 @@
+#!/bin/bash
+
+set -e
+
+CLIENT="$1"
+KEYNAME="$2"
+
+if [ "$SERVER" = "" ] || [ "$KEYNAME" = "" ]; then
+	echo "
+Usage: kxd-add-client-key <client hostname> <key name>
+
+This command is a helper for adding a new key to kxd's configuration.
+It takes the hostname of the client and the key name, and puts the
+corresponding configuration (including a randomly generated key) in
+/etc/kxd/data/<client hostname>/<key name>/.
+"
+	exit 1
+
+CONFIGPATH="/etc/kxd/data/$SERVER/$KEYNAME"
+
+echo "Creating directory ($CONFIGPATH)"
+mkdir -p "$CONFIGPATH"
+
+echo "Generating random key from /dev/urandom ($CONFIGPATH/key)"
+dd if=/dev/urandom of="$CONFIGPATH/key" bs=1k count=2
+echo
+
+echo "Allowing host $CLIENT"
+echo "$CLIENT" >> "$CONFIGPATH/allowed_hosts"
+
+echo
+echo
+echo "YOU need to copy the client certificate to"
+echo "$CONFIGPATH/allowed_clients. For example, using:"
+echo
+echo " $ scp $CLIENT:/etc/kxc/cert.pem $CONFIGPATH/allowed_clients"
+echo
