@@ -29,7 +29,7 @@ fi
 if ! [ -e /etc/kxd/cert.pem ]; then
 	echo "Generating certificate (/etc/kxd/cert.pem)"
 	openssl req -new -x509 -batch \
-		-subj "/organizationalUnitName=kxd@$HOSTNAME/" \
+		-subj "/commonName=*/organizationalUnitName=kxd@$HOSTNAME/" \
 		-key /etc/kxd/key.pem -out /etc/kxd/cert.pem
 else
 	echo "Certificate already exists (/etc/kxd/cert.pem)"

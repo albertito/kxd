@@ -66,8 +66,10 @@ def gen_certs(path):
         stdout=DEVNULL, stderr=DEVNULL)
     subprocess.check_call(
         ["openssl", "req", "-new", "-x509", "-batch",
-         "-subj", "/organizationalUnitName=kxd-tests:%s@%s" % (
-            os.getlogin(), platform.node()),
+         "-subj",
+            "/commonName=*" +
+            "/organizationalUnitName=kxd-tests:%s@%s" % (
+                os.getlogin(), platform.node()),
          "-key", "%s/key.pem" % path,
          "-out", "%s/cert.pem" % path],
         stdout=DEVNULL, stderr=DEVNULL)
@@ -227,7 +229,7 @@ class Simple(TestCase):
         # We tell the client to expect the server certificate to be the client
         # one, which is never going to work.
         self.assertClientFails("kxd://localhost/k1",
-                "No server certificate matches",
+                "certificate signed by unknown authority",
                 cert_path=self.client.cert_path())
 
 
@@ -350,7 +352,7 @@ class BrokenServerConfig(TestCase):
 
         # Corrupt the client certificate.
         cfd = open(self.server.path + "/data/k1/allowed_clients", "r+")
-        for _ in range(4):
+        for _ in range(5):
             cfd.readline()
         cfd.write('+/+BROKEN+/+')
         cfd.close()

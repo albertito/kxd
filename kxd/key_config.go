@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -49,7 +48,7 @@ type KeyConfig struct {
 	emailToPath        string
 
 	// Allowed certificates.
-	allowedClientCerts []*x509.Certificate
+	allowedClientCerts *x509.CertPool
 
 	// Allowed hosts.
 	allowedHosts []string
@@ -62,6 +61,7 @@ func NewKeyConfig(configPath string) *KeyConfig {
 		allowedClientsPath: configPath + "/allowed_clients",
 		allowedHostsPath:   configPath + "/allowed_hosts",
 		emailToPath:        configPath + "/email_to",
+		allowedClientCerts: x509.NewCertPool(),
 	}
 }
 
@@ -94,23 +94,8 @@ func (kc *KeyConfig) LoadClientCerts() error {
 		return err
 	}
 
-	for len(rawContents) > 0 {
-		var block *pem.Block
-		block, rawContents = pem.Decode(rawContents)
-		if block == nil {
-			return nil
-		}
-
-		if block.Type != "CERTIFICATE" {
-			continue
-		}
-
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			return err
-		}
-
-		kc.allowedClientCerts = append(kc.allowedClientCerts, cert)
+	if !kc.allowedClientCerts.AppendCertsFromPEM(rawContents) {
+		return fmt.Errorf("Error parsing client certificate file")
 	}
 
 	return nil
@@ -150,11 +135,19 @@ func (kc *KeyConfig) LoadAllowedHosts() error {
 
 func (kc *KeyConfig) IsAnyCertAllowed(
 	certs []*x509.Certificate) *x509.Certificate {
+	opts := x509.VerifyOptions{
+		Roots: kc.allowedClientCerts,
+	}
 	for _, cert := range certs {
-		for _, allowedCert := range kc.allowedClientCerts {
-			if cert.Equal(allowedCert) {
-				return cert
-			}
+		chains, err := cert.Verify(opts)
+		if err != nil {
+			continue
+		}
+
+		// Our clients have only one certificate, so no need to complicate
+		// lookups.
+		if len(chains) > 0 && len(chains[0]) > 0 {
+			return chains[0][len(chains[0])-1]
 		}
 	}
 	return nil
