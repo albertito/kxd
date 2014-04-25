@@ -128,7 +128,11 @@ class ClientConfig(Config):
                 "--client_key=%s/key.pem" % self.path,
                 "--server_cert=%s" % server_cert,
                 url]
-        return subprocess.check_output(args, stderr=subprocess.STDOUT)
+        try:
+            return subprocess.check_output(args, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as err:
+            print "Client call failed, output: %r" % err.output
+            raise
 
 
 def launch_daemon(cfg):
@@ -144,9 +148,14 @@ class TestCase(unittest.TestCase):
     def setUp(self):
         self.server = ServerConfig()
         self.server.gen_certs()
-        self.daemon = launch_daemon(self.server.path)
-
         self.client = ClientConfig()
+        self.LaunchServer(self.server)
+
+    def tearDown(self):
+        self.daemon.kill()
+
+    def LaunchServer(self, server):
+        self.daemon = launch_daemon(server.path)
 
         # Wait for the server to start accepting connections.
         deadline = time.time() + 5
@@ -158,9 +167,6 @@ class TestCase(unittest.TestCase):
                 continue
         else:
             self.fail("Timeout waiting for the server")
-
-    def tearDown(self):
-        self.daemon.kill()
 
     # pylint: disable=invalid-name
     def assertClientFails(self, url, regexp, client=None, cert_path=None):
@@ -270,6 +276,30 @@ class Multiples(TestCase):
             self.assertEquals(data, self.server.keys[key])
 
         self.assertClientFails("kxd://localhost/a/b", "404 Not Found")
+
+    def test_two_servers(self):
+        server1 = self.server
+        server1.new_key("k1", allowed_clients=[self.client.cert()])
+        server2 = ServerConfig()
+        server2.gen_certs()
+        server2.new_key("k1", allowed_clients=[self.client.cert()])
+
+        # Write a file containing the certs of both servers.
+        server_certs_path = self.client.path + "/server_certs.pem"
+        server_certs = open(server_certs_path, "w")
+        server_certs.write(open(server1.cert_path()).read())
+        server_certs.write(open(server2.cert_path()).read())
+        server_certs.close()
+
+        key = self.client.call(server_certs_path, "kxd://localhost/k1")
+        self.assertEquals(key, server1.keys["k1"])
+
+        self.daemon.kill()
+        time.sleep(0.5)
+        self.LaunchServer(server2)
+
+        key = self.client.call(server_certs_path, "kxd://localhost/k1")
+        self.assertEquals(key, server2.keys["k1"])
 
 
 class TrickyRequests(TestCase):
