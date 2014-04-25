@@ -163,12 +163,14 @@ class TestCase(unittest.TestCase):
         self.daemon.kill()
 
     # pylint: disable=invalid-name
-    def assertClientFails(self, url, regexp, client=None):
+    def assertClientFails(self, url, regexp, client=None, cert_path=None):
         if client is None:
             client = self.client
+        if cert_path is None:
+            cert_path = self.server.cert_path()
 
         try:
-            client.call(self.server.cert_path(), url)
+            client.call(cert_path, url)
         except subprocess.CalledProcessError as err:
             self.assertRegexpMatches(err.output, regexp)
         else:
@@ -210,6 +212,17 @@ class Simple(TestCase):
         # case, as it could be either the host or the cert that are validated
         # first.
         self.assertClientFails("kxd://localhost/k1", "403 Forbidden")
+
+    def test_wrong_server(self):
+        self.server.new_key("k1",
+                allowed_clients=[self.client.cert()],
+                allowed_hosts=["localhost"])
+
+        # We tell the client to expect the server certificate to be the client
+        # one, which is never going to work.
+        self.assertClientFails("kxd://localhost/k1",
+                "No server certificate matches",
+                cert_path=self.client.cert_path())
 
 
 class Multiples(TestCase):
