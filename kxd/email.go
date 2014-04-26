@@ -19,6 +19,7 @@ type EmailBody struct {
 	TimeString string
 	Req        *Request
 	Cert       *x509.Certificate
+	Chains     [][]*x509.Certificate
 }
 
 const emailTmplBody = (`Date: {{.TimeString}}
@@ -32,8 +33,11 @@ On: {{.TimeString}}
 
 Client certificate:
   Signature: {{printf "%.16s" (printf "%x" .Cert.Signature)}}...
-  Issuer: {{NameToString .Cert.Issuer}}
   Subject: {{NameToString .Cert.Subject}}
+
+Authorizing chains:
+{{range .Chains}}  {{ChainToString .}}
+{{end}}
 
 `)
 
@@ -41,7 +45,8 @@ var emailTmpl = template.New("email")
 
 func init() {
 	emailTmpl.Funcs(map[string]interface{}{
-		"NameToString": NameToString,
+		"NameToString":  NameToString,
+		"ChainToString": ChainToString,
 	})
 
 	template.Must(emailTmpl.Parse(emailTmplBody))
@@ -55,6 +60,9 @@ func NameToString(name pkix.Name) string {
 	for _, o := range name.Organization {
 		s = append(s, fmt.Sprintf("O=%s", o))
 	}
+	for _, o := range name.OrganizationalUnit {
+		s = append(s, fmt.Sprintf("OU=%s", o))
+	}
 
 	if name.CommonName != "" {
 		s = append(s, fmt.Sprintf("N=%s", name.CommonName))
@@ -63,7 +71,8 @@ func NameToString(name pkix.Name) string {
 	return strings.Join(s, " ")
 }
 
-func SendMail(kc *KeyConfig, req *Request, cert *x509.Certificate) error {
+func SendMail(kc *KeyConfig, req *Request,
+	chains [][]*x509.Certificate) error {
 	if *smtp_addr == "" {
 		req.Printf("Skipping notifications")
 		return nil
@@ -91,7 +100,8 @@ func SendMail(kc *KeyConfig, req *Request, cert *x509.Certificate) error {
 		Time:       now,
 		TimeString: now.Format(time.RFC1123Z),
 		Req:        req,
-		Cert:       cert,
+		Cert:       chains[0][0],
+		Chains:     chains,
 	}
 
 	msg := new(bytes.Buffer)

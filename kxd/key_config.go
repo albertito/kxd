@@ -134,20 +134,14 @@ func (kc *KeyConfig) LoadAllowedHosts() error {
 }
 
 func (kc *KeyConfig) IsAnyCertAllowed(
-	certs []*x509.Certificate) *x509.Certificate {
+	certs []*x509.Certificate) [][]*x509.Certificate {
 	opts := x509.VerifyOptions{
 		Roots: kc.allowedClientCerts,
 	}
 	for _, cert := range certs {
 		chains, err := cert.Verify(opts)
-		if err != nil {
-			continue
-		}
-
-		// Our clients have only one certificate, so no need to complicate
-		// lookups.
-		if len(chains) > 0 && len(chains[0]) > 0 {
-			return chains[0][len(chains[0])-1]
+		if err == nil && len(chains) > 0 {
+			return chains
 		}
 	}
 	return nil

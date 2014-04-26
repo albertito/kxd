@@ -68,7 +68,19 @@ func (req *Request) KeyPath() (string, error) {
 
 func CertToString(cert *x509.Certificate) string {
 	return fmt.Sprintf(
-		"<signature:0x%.8s>", fmt.Sprintf("%x", cert.Signature))
+		"(0x%.8s ou:%s)",
+		fmt.Sprintf("%x", cert.Signature),
+		cert.Subject.OrganizationalUnit)
+}
+
+func ChainToString(chain []*x509.Certificate) (s string) {
+	for i, cert := range chain {
+		s += CertToString(cert)
+		if i < len(chain)-1 {
+			s += " -> "
+		}
+	}
+	return s
 }
 
 // HandlerV1 handles /v1/ key requests.
@@ -135,8 +147,8 @@ func HandlerV1(w http.ResponseWriter, httpreq *http.Request) {
 		return
 	}
 
-	validCert := keyConf.IsAnyCertAllowed(req.TLS.PeerCertificates)
-	if validCert == nil {
+	validChains := keyConf.IsAnyCertAllowed(req.TLS.PeerCertificates)
+	if validChains == nil {
 		req.Printf("No allowed certificate found")
 		http.Error(w, "No allowed certificate found",
 			http.StatusForbidden)
@@ -151,9 +163,9 @@ func HandlerV1(w http.ResponseWriter, httpreq *http.Request) {
 		return
 	}
 
-	req.Printf("Allowing request to cert %s", CertToString(validCert))
+	req.Printf("Allowing request to %s", CertToString(validChains[0][0]))
 
-	err = SendMail(keyConf, &req, validCert)
+	err = SendMail(keyConf, &req, validChains)
 	if err != nil {
 		req.Printf("Error sending notification: %s", err)
 		http.Error(w, "Error sending notification",
