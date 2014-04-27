@@ -38,6 +38,10 @@ import unittest
 BINS = os.path.abspath(
         os.path.dirname(os.path.realpath(__file__)) + "/../out")
 
+# Path to the test OpenSSL configuration.
+OPENSSL_CONF = os.path.abspath(
+        os.path.dirname(os.path.realpath(__file__)) + "/openssl.cnf")
+
 DEVNULL = open("/dev/null", "w")
 
 TEMPDIR = "/does/not/exist"
@@ -112,19 +116,20 @@ class CA(object):
         # TODO: This works because of Debian's default config; it needs to be
         # generalized, probably by including an openssl config to use.
         self.path = tempfile.mkdtemp(prefix="config-ca-", dir=TEMPDIR)
-        os.makedirs(self.path + "/demoCA/newcerts/")
+        os.makedirs(self.path + "/kxd-ca/newcerts/")
 
         try:
             # We need to run the CA commands from within the path.
             with pushd(self.path):
-                open("demoCA/index.txt", "w")
-                open("demoCA/serial", "w").write("1000\n")
+                open("kxd-ca/index.txt", "w")
+                open("kxd-ca/serial", "w").write("1000\n")
                 subprocess.check_output(
                         ["openssl", "req", "-new", "-x509", "-batch",
+                            "-config", OPENSSL_CONF,
                             "-subj",
-                            "/commonName=*" +
-                            "/organizationalUnitName=kxd-tests-ca:%s@%s" % (
-                                os.getlogin(), platform.node()),
+                              "/commonName=*" +
+                              "/organizationalUnitName=kxd-tests-ca:%s@%s" % (
+                                  os.getlogin(), platform.node()),
                             "-extensions", "v3_ca", "-nodes",
                             "-keyout", "cakey.pem",
                             "-out", "cacert.pem"],
@@ -137,8 +142,7 @@ class CA(object):
         try:
             with pushd(self.path):
                 subprocess.check_output(
-                        ["openssl", "ca", "-batch",
-                            "-policy", "policy_anything",
+                        ["openssl", "ca", "-batch", "-config", OPENSSL_CONF,
                             "-keyfile", "cakey.pem", "-cert", "cacert.pem",
                             "-in", csr,
                             "-out", "%s.pem" % os.path.splitext(csr)[0]],
