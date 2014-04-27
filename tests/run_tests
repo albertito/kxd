@@ -211,12 +211,15 @@ class TestCase(unittest.TestCase):
     def setUp(self):
         self.server = ServerConfig()
         self.client = ClientConfig()
-        self.LaunchServer(self.server)
+        self.daemon = None
+        self.ca = None    # pylint: disable=invalid-name
+        self.launch_server(self.server)
 
     def tearDown(self):
-        self.daemon.kill()
+        if self.daemon:
+            self.daemon.kill()
 
-    def LaunchServer(self, server):
+    def launch_server(self, server):
         self.daemon = launch_daemon(server.path)
 
         # Wait for the server to start accepting connections.
@@ -253,38 +256,38 @@ class Simple(TestCase):
     """Simple test cases for common (mis)configurations."""
 
     def test_simple(self):
+        # There's no need to split these up; by doing all these within a
+        # single test, we speed things up significantly, as we avoid the
+        # overhead of creating the certificates and bringing up the server.
+
+        # Normal successful case.
         self.server.new_key("k1",
                 allowed_clients=[self.client.cert()],
                 allowed_hosts=["localhost"])
         key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
         self.assertEquals(key, self.server.keys["k1"])
 
-    def test_404(self):
-        self.assertClientFails("kxd://localhost/k1", "404 Not Found")
+        # Unknown key -> 404.
+        self.assertClientFails("kxd://localhost/k2", "404 Not Found")
 
-    def test_no_client_cert(self):
-        self.server.new_key("k1", allowed_hosts=["localhost"])
-        self.assertClientFails("kxd://localhost/k1",
+        # No certificates allowed -> 403.
+        self.server.new_key("k3", allowed_hosts=["localhost"])
+        self.assertClientFails("kxd://localhost/k3",
                 "403 Forbidden.*No allowed certificate found")
 
-    def test_host_not_allowed(self):
-        self.server.new_key("k1",
+        # Host not allowed -> 403.
+        self.server.new_key("k4",
                 allowed_clients=[self.client.cert()],
                 allowed_hosts=[])
-        self.assertClientFails("kxd://localhost/k1",
+        self.assertClientFails("kxd://localhost/k4",
                 "403 Forbidden.*Host not allowed")
 
-    def test_not_allowed(self):
-        self.server.new_key("k1")
+        # Nothing allowed -> 403.
         # We don't restrict the reason of failure, that's not defined in this
         # case, as it could be either the host or the cert that are validated
         # first.
-        self.assertClientFails("kxd://localhost/k1", "403 Forbidden")
-
-    def test_wrong_server(self):
-        self.server.new_key("k1",
-                allowed_clients=[self.client.cert()],
-                allowed_hosts=["localhost"])
+        self.server.new_key("k5")
+        self.assertClientFails("kxd://localhost/k5", "403 Forbidden")
 
         # We tell the client to expect the server certificate to be the client
         # one, which is never going to work.
@@ -310,14 +313,14 @@ class Multiples(TestCase):
         key = self.client2.call(self.server.cert_path(), "kxd://localhost/k1")
         self.assertEquals(key, self.server.keys["k1"])
 
-    def test_one_client_allowed(self):
-        self.server.new_key("k1",
+        # Only one client allowed.
+        self.server.new_key("k2",
                 allowed_clients=[self.client.cert()],
                 allowed_hosts=["localhost"])
-        key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
-        self.assertEquals(key, self.server.keys["k1"])
+        key = self.client.call(self.server.cert_path(), "kxd://localhost/k2")
+        self.assertEquals(key, self.server.keys["k2"])
 
-        self.assertClientFails("kxd://localhost/k1",
+        self.assertClientFails("kxd://localhost/k2",
                 "403 Forbidden.*No allowed certificate found",
                 client=self.client2)
 
@@ -357,7 +360,7 @@ class Multiples(TestCase):
 
         self.daemon.kill()
         time.sleep(0.5)
-        self.LaunchServer(server2)
+        self.launch_server(server2)
 
         key = self.client.call(server_certs_path, "kxd://localhost/k1")
         self.assertEquals(key, server2.keys["k1"])
@@ -366,7 +369,8 @@ class Multiples(TestCase):
 class TrickyRequests(TestCase):
     """Tests for tricky requests."""
 
-    def test_no_local_cert(self):
+    def test_tricky(self):
+        # No local certificate.
         conn = httplib.HTTPSConnection("localhost", 19840)
         try:
             conn.request("GET", "/v1/")
@@ -375,7 +379,7 @@ class TrickyRequests(TestCase):
         else:
             self.fail("Client call did not fail as expected")
 
-    def test_dotdot(self):
+        # Requests with '..'.
         conn = httplib.HTTPSConnection("localhost", 19840,
                 key_file=self.client.key_path(),
                 cert_file=self.client.cert_path())
@@ -427,6 +431,7 @@ class BrokenServerConfig(TestCase):
         os.unlink(self.server.path + "/data/k1/key")
         self.assertClientFails("kxd://localhost/k1", "404 Not Found")
 
+
 class Delegation(TestCase):
     """Tests for CA delegations."""
     def setUp(self):
@@ -450,7 +455,7 @@ class Delegation(TestCase):
         if ca_sign_client:
             self.ca.sign(self.client.csr_path())
 
-        self.LaunchServer(self.server)
+        self.launch_server(self.server)
 
     def test_server_delegated(self):
         self.prepare(server_self_sign=False)
