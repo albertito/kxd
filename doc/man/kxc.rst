@@ -50,3 +50,10 @@ SEE ALSO
 
 ``kxc-cryptsetup(1)``, ``kxd(1)``.
 
+
+BUGS
+====
+
+If you want to report bugs, or have any questions or comments, just let me
+know. For more information, you can go to http://blitiri.com.ar/p/kxd.
+

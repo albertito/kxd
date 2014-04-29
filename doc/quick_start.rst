@@ -3,31 +3,35 @@
  Key Exchange Daemon - Quick start
 ===================================
 
-In this guide we show how to set up a key exchange daemon and client
+In this guide we show how to set up a `key exchange daemon`_ and client
 on a typical scenario where the keys are used to open a device encrypted with
-dm-crypt (the standard Linux disk encryption).
+dm-crypt_ (the standard Linux disk encryption).
 
-``server`` is the hostname of the server.
-``client`` is the hostname of the client.
-``sda2`` is the encrypted drive.
+These steps have been checked on a Debian install, other distributions should
+be similar but may differ on some of the details (specially on the
+"`Configuring crypttab`_" section).
+
+- ``server`` is the hostname of the server.
+- ``client`` is the hostname of the client.
+- ``sda2`` is the encrypted drive.
 
 
 Initial server setup
 ====================
 
-First of all, install *kxd* on the server, usually via your distribution
+First of all, install kxd_ on the server, usually via your distribution
 packages, or directly from source.
 
 Then, run ``create-kxd-config``, which will create the configuration
-directories, and generate the server key/cert pair. Everything is in
-``/etc/kxd/``.
+directories, and generate a self-signed_ key/cert pair for the server.
+Everything is in ``/etc/kxd/``.
 
 
 Initial client setup
 ====================
 
-Install *kxc* on the client machine, usually via your distribution packages,
-or directly from source.
+Install kxc_ on the client machine, usually via your distribution packages, or
+directly from source.
 
 
 Then, run ``kxc-add-key server sda2``, which will create the configuration
@@ -85,9 +89,10 @@ In order to get kxc to be run automatically to fetch the key, we need to edit
   sda2_crypt UUID=blah-blah-blah sda2 luks,keyscript=kxc-cryptsetup
                                  ^^^^      ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Note the "sda2" field corresponds to the name we've been passing around in
-previous sections. The ``keyscript=kxc-cryptsetup`` is our way of telling the
-cryptsetup infrastructure to use our script to fetch the key for this target.
+Note the ``sda2`` field corresponds to the name we've been passing around in
+previous sections. The ``keyscript=kxc-cryptsetup`` option is our way of
+telling the cryptsetup infrastructure to use our script to fetch the key for
+this target.
 
 
 You can test that this works by using::
@@ -96,3 +101,14 @@ You can test that this works by using::
   cryptdisks_start sda2_crypt
 
 The second command should issue a request to your server to get the key.
+
+Consider running ``update-initramfs`` if your device is the root device, or it
+is needed very early in the boot process.
+
+
+.. _key exchange daemon: http://blitiri.com.ar/p/kxd
+.. _kxd: http://blitiri.com.ar/p/kxd
+.. _kxc: http://blitiri.com.ar/p/kxd
+.. _dm-crypt: https://en.wikipedia.org/wiki/dm-crypt
+.. _self-signed: https://en.wikipedia.org/wiki/Self-signed_certificate
+

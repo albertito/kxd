@@ -60,3 +60,10 @@ SEE ALSO
 
 ``kxc(1)``, ``kxd(1)``, ``crypttab(5)``, ``cryptsetup(8)``.
 
+
+BUGS
+====
+
+If you want to report bugs, or have any questions or comments, just let me
+know. For more information, you can go to http://blitiri.com.ar/p/kxd.
+
