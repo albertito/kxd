@@ -59,7 +59,7 @@ install-initramfs: install-kxc
 	$(INSTALL) -m 0755 cryptsetup/initramfs-hooks/kxc \
 		$(PREFIX)/share/initramfs-tools/hooks/
 	$(INSTALL) -d $(PREFIX)/share/initramfs-tools/scripts/init-premount
-	$(INSTALL) -m 0755 cryptsetup/initramfs-scripts/premount-net \
+	$(INSTALL) -m 0755 cryptsetup/initramfs-scripts/kxc-premount-net \
 		$(PREFIX)/share/initramfs-tools/scripts/init-premount/
 
 

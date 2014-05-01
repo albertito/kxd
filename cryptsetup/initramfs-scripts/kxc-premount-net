@@ -22,6 +22,8 @@ esac
 configure_networking
 
 # Configure a basic resolv.conf based on our networking.
-echo "nameserver $IPV4DNS0" >> /etc/resolv.conf
+if ! [ -s /etc/resolv.conf ]; then
+	echo "nameserver $IPV4DNS0" >> /etc/resolv.conf
+fi
 
 
