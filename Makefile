@@ -49,6 +49,10 @@ install-systemd: install-kxd
 	$(INSTALL) -m 0644 scripts/default/kxd $(ETCDIR)/default/kxd
 	$(INSTALL) -m 0644 scripts/systemd/kxd.service $(SYSTEMDDIR)
 
+install-upstart: install-kxd
+	$(INSTALL) -m 0644 scripts/default/kxd $(ETCDIR)/default/kxd
+	$(INSTALL) -m 0644 scripts/upstart/kxd.conf $(ETCDIR)/init/
+
 install-kxc: kxc
 	$(INSTALL) -m 0755 out/kxc $(PREFIX)/bin/
 	$(INSTALL) -m 0755 cryptsetup/kxc-cryptsetup $(PREFIX)/bin/
