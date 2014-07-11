@@ -228,6 +228,7 @@ func main() {
 	server := http.Server{
 		Addr:      listenAddr,
 		TLSConfig: &tlsConfig,
+		ErrorLog:  logging,
 	}
 
 	http.HandleFunc("/v1/", HandlerV1)
