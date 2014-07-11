@@ -114,8 +114,6 @@ class Config(object):
 
 class CA(object):
     def __init__(self):
-        # TODO: This works because of Debian's default config; it needs to be
-        # generalized, probably by including an openssl config to use.
         self.path = tempfile.mkdtemp(prefix="config-ca-", dir=TEMPDIR)
         os.makedirs(self.path + "/kxd-ca/newcerts/")
 
