@@ -28,7 +28,7 @@ fi
 # And a self-signed certificate.
 if ! [ -e /etc/kxd/cert.pem ]; then
 	echo "Generating certificate (/etc/kxd/cert.pem)"
-	openssl req -new -x509 -batch \
+	openssl req -new -x509 -batch -days 3650 \
 		-subj "/commonName=*/organizationalUnitName=kxd@$HOSTNAME/" \
 		-key /etc/kxd/key.pem -out /etc/kxd/cert.pem
 else

@@ -39,7 +39,7 @@ fi
 # And a self-signed certificate.
 if ! [ -e /etc/kxc/cert.pem ]; then
 	echo "Generating certificate (/etc/kxc/cert.pem)"
-	openssl req -new -x509 -batch \
+	openssl req -new -x509 -batch -days 3650 \
 		-subj "/commonName=*/organizationalUnitName=kxc@$HOSTNAME/" \
 		-key /etc/kxc/key.pem -out /etc/kxc/cert.pem
 else

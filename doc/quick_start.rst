@@ -23,7 +23,8 @@ First of all, install kxd_ on the server, usually via your distribution
 packages, or directly from source.
 
 Then, run ``create-kxd-config``, which will create the configuration
-directories, and generate a self-signed_ key/cert pair for the server.
+directories, and generate a self-signed_ key/cert pair for the server (valid
+for 10 years).
 Everything is in ``/etc/kxd/``.
 
 
@@ -35,8 +36,8 @@ directly from source.
 
 
 Then, run ``kxc-add-key server sda2``, which will create the configuration
-directories, and generate the client key/cert pair, and also create an entry
-for an ``client/sda2`` key to be fetched from the server.
+directories, generate the client key/cert pair (valid for 10 years), and also
+create an entry for an ``client/sda2`` key to be fetched from the server.
 Everything is in ``/etc/kxc/``.
 
 Finally, copy the server public certificate over, using
