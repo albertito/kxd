@@ -75,7 +75,7 @@ Dependencies
 
 There are no runtime dependencies for the kxd and kxc binaries.
 
-Building requires Go 1.2.
+Building requires Go 1.3.
 
 The configuration helper scripts (create-kxd-config, kxc-add-key, etc.)
 depend on: bash, openssl (the binary), and core utilities (mkdir, dd, etc.).
