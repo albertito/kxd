@@ -5,7 +5,7 @@ set -e
 CLIENT="$1"
 KEYNAME="$2"
 
-if [ "$SERVER" = "" ] || [ "$KEYNAME" = "" ]; then
+if [ "$CLIENT" = "" ] || [ "$KEYNAME" = "" ]; then
 	echo "
 Usage: kxd-add-client-key <client hostname> <key name>
 
@@ -15,8 +15,9 @@ corresponding configuration (including a randomly generated key) in
 /etc/kxd/data/<client hostname>/<key name>/.
 "
 	exit 1
+fi
 
-CONFIGPATH="/etc/kxd/data/$SERVER/$KEYNAME"
+CONFIGPATH="/etc/kxd/data/$CLIENT/$KEYNAME"
 
 echo "Creating directory ($CONFIGPATH)"
 mkdir -p "$CONFIGPATH"
