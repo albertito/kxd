@@ -48,6 +48,10 @@ DEVNULL = open("/dev/null", "w")
 
 TEMPDIR = "/does/not/exist"
 
+# User the script is running as. Just informational, for troubleshooting
+# purposes, so we don't care if it's missing.
+LOGNAME = os.environ.get('LOGNAME', 'unknown')
+
 
 def setUpModule():    # pylint: disable=invalid-name
     if not os.path.isfile(BINS + "/kxd"):
@@ -90,7 +94,7 @@ class Config(object):
         req_args = ["openssl", "req", "-new", "-batch",
                     "-subj", ("/commonName=*" +
                               "/organizationalUnitName=kxd-tests-%s:%s@%s" % (
-                                  self.name, os.getlogin(), platform.node())),
+                                  self.name, LOGNAME, platform.node())),
                     "-key", "%s/key.pem" % self.path]
         if self_sign:
             req_args.extend(["-x509", "-out", "%s/cert.pem" % self.path])
@@ -127,7 +131,7 @@ class CA(object):
                      "-config", OPENSSL_CONF,
                      "-subj", ("/commonName=*" +
                                "/organizationalUnitName=kxd-tests-ca:%s@%s" % (
-                                   os.getlogin(), platform.node())),
+                                   LOGNAME, platform.node())),
                      "-extensions", "v3_ca", "-nodes",
                      "-keyout", "cakey.pem",
                      "-out", "cacert.pem"],
