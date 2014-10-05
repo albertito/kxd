@@ -404,8 +404,8 @@ class TrickyRequests(TestCase):
                                certfile=self.client.cert_path())
 
         # We don't check the cipher itself, as it depends on the environment,
-        # but we should be using > 128 bit secrets.
-        self.assertTrue(sock.cipher()[2] > 128)
+        # but we should be using >= 128 bit secrets.
+        self.assertTrue(sock.cipher()[2] >= 128)
 
         server_cert = ssl.DER_cert_to_PEM_cert(
             sock.getpeercert(binary_form=True))
