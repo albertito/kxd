@@ -87,13 +87,13 @@ Configuring crypttab
 In order to get kxc to be run automatically to fetch the key, we need to edit
 ``/etc/crypttab`` and tell it to use a keyscript::
 
-  sda2_crypt UUID=blah-blah-blah sda2 luks,keyscript=kxc-cryptsetup
-                                 ^^^^      ^^^^^^^^^^^^^^^^^^^^^^^^
+  sda2_crypt UUID=blah-blah-blah sda2 luks,keyscript=/usr/bin/kxc-cryptsetup
+                                 ^^^^      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Note the ``sda2`` field corresponds to the name we've been passing around in
-previous sections. The ``keyscript=kxc-cryptsetup`` option is our way of
-telling the cryptsetup infrastructure to use our script to fetch the key for
-this target.
+previous sections. The ``keyscript=/usr/bin/kxc-cryptsetup`` option is our way
+of telling the cryptsetup infrastructure to use our script to fetch the key
+for this target.
 
 
 You can test that this works by using::
@@ -103,8 +103,8 @@ You can test that this works by using::
 
 The second command should issue a request to your server to get the key.
 
-Consider running ``update-initramfs`` if your device is the root device, or it
-is needed very early in the boot process.
+Consider running ``update-initramfs -u`` if your device is the root device, or
+it is needed very early in the boot process.
 
 
 .. _key exchange daemon: http://blitiri.com.ar/p/kxd
