@@ -24,6 +24,7 @@ import shutil
 import socket
 import ssl
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -376,9 +377,23 @@ class Multiples(TestCase):
 class TrickyRequests(TestCase):
     """Tests for tricky requests."""
 
+    def HTTPSConnection(self, host, port, key_file=None, cert_file=None):
+        # httplib.HTTPSConnection() wrapper that works with versions before
+        # and after Python 2.7.9, which introduced default server validation
+        # with no backwards-compatible way of turning it off.
+        if sys.hexversion < 0x2070900:
+            return httplib.HTTPSConnection(
+                host, port, key_file=key_file, cert_file=cert_file)
+
+        # Get an SSL context that can validate our server certificate.
+        context = ssl.create_default_context(cafile=self.server.cert_path())
+        return httplib.HTTPSConnection(
+            host, port, key_file=key_file, cert_file=cert_file,
+            context=context)
+
     def test_tricky(self):
         # No local certificate.
-        conn = httplib.HTTPSConnection("localhost", 19840)
+        conn = self.HTTPSConnection("localhost", 19840)
         try:
             conn.request("GET", "/v1/")
         except ssl.SSLError as err:
@@ -387,9 +402,9 @@ class TrickyRequests(TestCase):
             self.fail("Client call did not fail as expected")
 
         # Requests with '..'.
-        conn = httplib.HTTPSConnection("localhost", 19840,
-                                       key_file=self.client.key_path(),
-                                       cert_file=self.client.cert_path())
+        conn = self.HTTPSConnection("localhost", 19840,
+                                    key_file=self.client.key_path(),
+                                    cert_file=self.client.cert_path())
         conn.request("GET", "/v1/a/../b")
         response = conn.getresponse()
 
