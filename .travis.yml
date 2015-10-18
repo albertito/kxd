@@ -1,0 +1,22 @@
+# Configuration for https://travis-ci.org/
+
+language: go
+go_import_path: blitiri.com.ar/go/kxd
+
+go:
+    - 1.4
+    - 1.5
+    - tip
+
+addons:
+    apt:
+        packages:
+            - python
+            - openssl
+
+# Nothing to do for install, the tests will build the binaries anyway.
+install: true
+
+script:
+    - make test
+
