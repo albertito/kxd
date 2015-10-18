@@ -45,8 +45,6 @@ BINS = os.path.abspath(
 OPENSSL_CONF = os.path.abspath(
     os.path.dirname(os.path.realpath(__file__)) + "/openssl.cnf")
 
-DEVNULL = open("/dev/null", "w")
-
 TEMPDIR = "/does/not/exist"
 
 # User the script is running as. Just informational, for troubleshooting
@@ -88,9 +86,13 @@ class Config(object):
         self.name = name
 
     def gen_certs(self, self_sign=True):
-        subprocess.check_call(
-            ["openssl", "genrsa", "-out", "%s/key.pem" % self.path, "2048"],
-            stdout=DEVNULL, stderr=DEVNULL)
+        try:
+            cmd = ["openssl", "genrsa",
+                   "-out", "%s/key.pem" % self.path, "2048"]
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as err:
+            print "openssl call failed, output: %r" % err.output
+            raise
 
         req_args = ["openssl", "req", "-new", "-batch",
                     "-subj", ("/commonName=*" +
@@ -102,7 +104,11 @@ class Config(object):
         else:
             req_args.extend(["-out", "%s/cert.csr" % self.path])
 
-        subprocess.check_call(req_args, stdout=DEVNULL, stderr=DEVNULL)
+        try:
+            subprocess.check_output(req_args, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as err:
+            print "openssl call failed, output: %r" % err.output
+            raise
 
     def cert_path(self):
         return self.path + "/cert.pem"
