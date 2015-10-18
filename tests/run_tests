@@ -94,10 +94,10 @@ class Config(object):
             print "openssl call failed, output: %r" % err.output
             raise
 
+        ouname = "kxd-tests-%s" % self.name
         req_args = ["openssl", "req", "-new", "-batch",
                     "-subj", ("/commonName=*" +
-                              "/organizationalUnitName=kxd-tests-%s:%s@%s" % (
-                                  self.name, LOGNAME, platform.node())),
+                              "/organizationalUnitName=%s" % ouname),
                     "-key", "%s/key.pem" % self.path]
         if self_sign:
             req_args.extend(["-x509", "-out", "%s/cert.pem" % self.path])
@@ -137,8 +137,7 @@ class CA(object):
                     ["openssl", "req", "-new", "-x509", "-batch",
                      "-config", OPENSSL_CONF,
                      "-subj", ("/commonName=*" +
-                               "/organizationalUnitName=kxd-tests-ca:%s@%s" % (
-                                   LOGNAME, platform.node())),
+                               "/organizationalUnitName=kxd-tests-ca"),
                      "-extensions", "v3_ca", "-nodes",
                      "-keyout", "cakey.pem",
                      "-out", "cacert.pem"],
