@@ -449,7 +449,7 @@ class BrokenServerConfig(TestCase):
 
         self.assertClientFails(
             "kxd://localhost/k1",
-            "500 Internal Server Error.*Error loading certs")
+            "Error loading certs|No allowed certificate found")
 
     def test_missing_key(self):
         self.server.new_key("k1",
@@ -465,7 +465,7 @@ class Delegation(TestCase):
     def setUp(self):
         # For these tests, we don't have a common setup, as each will create
         # server and clients in a slightly different way.
-        pass
+        self.daemon = None
 
     def prepare(self, server_self_sign=True, client_self_sign=True,
                 ca_sign_server=None, ca_sign_client=None):
