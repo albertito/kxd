@@ -496,11 +496,14 @@ class Delegation(TestCase):
         key = self.client.call(self.ca.cert_path(), "kxd://localhost/k1")
         self.assertEquals(key, self.server.keys["k1"])
 
-        # The server is signed by the CA, but the CA is unknown to the client,
-        # so it can't validate it, even if it knows the server directly.
-        self.assertClientFails("kxd://localhost/k1",
-                               "certificate signed by unknown authority",
-                               cert_path=self.server.cert_path())
+        # The server is signed by the CA, but the CA is unknown to the client.
+        # But the client knows the server directly, so it's allowed.
+        #
+        # NOTE: go <= 1.7 rejected this case, it was only allowed during the
+        # 1.8 development cycle (8ad70a5), so comment it out for now.
+        #
+        #key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
+        #self.assertEquals(key, self.server.keys["k1"])
 
         # Same as above, but give the wrong CA.
         ca2 = CA()
@@ -527,14 +530,17 @@ class Delegation(TestCase):
                                "403 Forbidden.*No allowed certificate found",
                                cert_path=self.server.cert_path())
 
-        # The client is signed by the CA, but the CA is unknown to the server,
-        # so it can't validate it, even if it knows the client directly.
-        self.server.new_key("k3",
-                            allowed_clients=[self.client.cert()],
-                            allowed_hosts=["localhost"])
-        self.assertClientFails("kxd://localhost/k3",
-                               "403 Forbidden.*No allowed certificate found",
-                               cert_path=self.server.cert_path())
+        # The client is signed by the CA, but the CA is unknown to the server.
+        # But the server it knows the client directly, so it's allowed.
+        #
+        # NOTE: go <= 1.7 rejected this case, it was only allowed during the
+        # 1.8 development cycle (8ad70a5), so comment it out for now.
+        #
+        #self.server.new_key("k3",
+        #                    allowed_clients=[self.client.cert()],
+        #                    allowed_hosts=["localhost"])
+        #key = self.client.call(self.server.cert_path(), "kxd://localhost/k3")
+        #self.assertEquals(key, self.server.keys["k3"])
 
     def test_both_delegated(self):
         self.prepare(server_self_sign=False, client_self_sign=False)
