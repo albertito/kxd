@@ -24,19 +24,19 @@ import (
 
 var port = flag.Int(
 	"port", 19840, "Port to listen on")
-var ip_addr = flag.String(
+var ipAddr = flag.String(
 	"ip_addr", "", "IP address to listen on")
-var data_dir = flag.String(
+var dataDir = flag.String(
 	"data_dir", "/etc/kxd/data", "Data directory")
-var certfile = flag.String(
+var certFile = flag.String(
 	"cert", "/etc/kxd/cert.pem", "Certificate")
-var keyfile = flag.String(
+var keyFile = flag.String(
 	"key", "/etc/kxd/key.pem", "Private key")
-var smtp_addr = flag.String(
+var smtpAddr = flag.String(
 	"smtp_addr", "", "Address of the SMTP server to use to send emails")
-var email_from = flag.String(
+var emailFrom = flag.String(
 	"email_from", "", "Email address to send email from")
-var logfile = flag.String(
+var logFile = flag.String(
 	"logfile", "", "File to write logs to, use '-' for stdout")
 
 // Logger we will use to log entries.
@@ -48,6 +48,8 @@ type Request struct {
 	*http.Request
 }
 
+// Printf is a wrapper for fmt.Printf+logging.Output, which prefixes a string
+// identifying this request.
 func (req *Request) Printf(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
 	msg = fmt.Sprintf("%s %s %s", req.RemoteAddr, req.URL.Path, msg)
@@ -66,16 +68,18 @@ func (req *Request) KeyPath() (string, error) {
 	return strings.Join(s[2:], "/"), nil
 }
 
-func CertToString(cert *x509.Certificate) string {
+func certToString(cert *x509.Certificate) string {
 	return fmt.Sprintf(
 		"(0x%.8s ou:%s)",
 		fmt.Sprintf("%x", cert.Signature),
 		cert.Subject.OrganizationalUnit)
 }
 
+// ChainToString makes a human-readable string out of the given certificate
+// chain.
 func ChainToString(chain []*x509.Certificate) (s string) {
 	for i, cert := range chain {
-		s += CertToString(cert)
+		s += certToString(cert)
 		if i < len(chain)-1 {
 			s += " -> "
 		}
@@ -110,7 +114,7 @@ func HandlerV1(w http.ResponseWriter, httpreq *http.Request) {
 		return
 	}
 
-	realKeyPath := path.Clean(*data_dir + "/" + keyPath)
+	realKeyPath := path.Clean(*dataDir + "/" + keyPath)
 	keyConf := NewKeyConfig(realKeyPath)
 
 	exists, err := keyConf.Exists()
@@ -163,7 +167,7 @@ func HandlerV1(w http.ResponseWriter, httpreq *http.Request) {
 		return
 	}
 
-	req.Printf("Allowing request to %s", CertToString(validChains[0][0]))
+	req.Printf("Allowing request to %s", certToString(validChains[0][0]))
 
 	err = SendMail(keyConf, &req, validChains)
 	if err != nil {
@@ -181,14 +185,14 @@ func initLog() {
 	var err error
 	var logfd io.Writer
 
-	if *logfile == "-" {
+	if *logFile == "-" {
 		logfd = os.Stdout
-	} else if *logfile != "" {
-		logfd, err = os.OpenFile(*logfile,
+	} else if *logFile != "" {
+		logfd, err = os.OpenFile(*logFile,
 			os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 		if err != nil {
 			log.Fatalf("Error opening log file %s: %s",
-				*logfile, err)
+				*logFile, err)
 		}
 	} else {
 		logfd, err = syslog.New(
@@ -207,19 +211,19 @@ func main() {
 
 	initLog()
 
-	if *smtp_addr == "" {
+	if *smtpAddr == "" {
 		logging.Print(
 			"WARNING: No emails will be sent, use --smtp_addr")
 	}
 
-	if *email_from == "" {
+	if *emailFrom == "" {
 		// Try to get a sane default if not provided, using
 		// kxd@<smtp host>.
-		*email_from = fmt.Sprintf("kxd@%s",
-			strings.Split(*smtp_addr, ":")[0])
+		*emailFrom = fmt.Sprintf("kxd@%s",
+			strings.Split(*smtpAddr, ":")[0])
 	}
 
-	listenAddr := fmt.Sprintf("%s:%d", *ip_addr, *port)
+	listenAddr := fmt.Sprintf("%s:%d", *ipAddr, *port)
 
 	tlsConfig := tls.Config{
 		ClientAuth: tls.RequireAnyClientCert,
@@ -234,7 +238,7 @@ func main() {
 	http.HandleFunc("/v1/", HandlerV1)
 
 	logging.Printf("Listening on %s", listenAddr)
-	err := server.ListenAndServeTLS(*certfile, *keyfile)
+	err := server.ListenAndServeTLS(*certFile, *keyFile)
 	if err != nil {
 		logging.Fatal(err)
 	}

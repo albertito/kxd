@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func FileStat(path string) (os.FileInfo, error) {
+func fileStat(path string) (os.FileInfo, error) {
 	fd, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -18,8 +18,8 @@ func FileStat(path string) (os.FileInfo, error) {
 	return fd.Stat()
 }
 
-func IsDir(path string) (bool, error) {
-	fi, err := FileStat(path)
+func isDir(path string) (bool, error) {
+	fi, err := fileStat(path)
 	if err != nil {
 		return false, err
 	}
@@ -27,8 +27,8 @@ func IsDir(path string) (bool, error) {
 	return fi.IsDir(), nil
 }
 
-func IsRegular(path string) (bool, error) {
-	fi, err := FileStat(path)
+func isRegular(path string) (bool, error) {
+	fi, err := fileStat(path)
 	if err != nil {
 		return false, err
 	}
@@ -54,6 +54,8 @@ type KeyConfig struct {
 	allowedHosts []string
 }
 
+// NewKeyConfig makes a new KeyConfig based on the given path. Note that there
+// is no check about the key existing or being valid.
 func NewKeyConfig(configPath string) *KeyConfig {
 	return &KeyConfig{
 		ConfigPath:         configPath,
@@ -65,8 +67,9 @@ func NewKeyConfig(configPath string) *KeyConfig {
 	}
 }
 
+// Exists checks if this key exists.
 func (kc *KeyConfig) Exists() (bool, error) {
-	isDir, err := IsDir(kc.ConfigPath)
+	isDir, err := isDir(kc.ConfigPath)
 	if os.IsNotExist(err) {
 		return false, nil
 	} else if err != nil {
@@ -76,7 +79,7 @@ func (kc *KeyConfig) Exists() (bool, error) {
 		return false, nil
 	}
 
-	isRegular, err := IsRegular(kc.keyPath)
+	isRegular, err := isRegular(kc.keyPath)
 	if os.IsNotExist(err) {
 		return false, nil
 	} else if err != nil {
@@ -86,6 +89,7 @@ func (kc *KeyConfig) Exists() (bool, error) {
 	return isRegular, nil
 }
 
+// LoadClientCerts loads the client certificates allowed for this key.
 func (kc *KeyConfig) LoadClientCerts() error {
 	rawContents, err := ioutil.ReadFile(kc.allowedClientsPath)
 	if os.IsNotExist(err) {
@@ -101,6 +105,7 @@ func (kc *KeyConfig) LoadClientCerts() error {
 	return nil
 }
 
+// LoadAllowedHosts loads the hosts allowed for this key.
 func (kc *KeyConfig) LoadAllowedHosts() error {
 	contents, err := ioutil.ReadFile(kc.allowedHostsPath)
 	if os.IsNotExist(err) {
@@ -133,6 +138,8 @@ func (kc *KeyConfig) LoadAllowedHosts() error {
 	return nil
 }
 
+// IsAnyCertAllowed checks if any of the given certificates is allowed to
+// access this key. If so, it returns the chain for each of them.
 func (kc *KeyConfig) IsAnyCertAllowed(
 	certs []*x509.Certificate) [][]*x509.Certificate {
 	opts := x509.VerifyOptions{
@@ -147,6 +154,7 @@ func (kc *KeyConfig) IsAnyCertAllowed(
 	return nil
 }
 
+// IsHostAllowed checks if the given host is allowed to access this key.
 func (kc *KeyConfig) IsHostAllowed(addr string) error {
 	if kc.allowedHosts == nil {
 		return nil
@@ -166,10 +174,12 @@ func (kc *KeyConfig) IsHostAllowed(addr string) error {
 	return fmt.Errorf("Host %q not allowed", host)
 }
 
+// Key returns the private key.
 func (kc *KeyConfig) Key() (key []byte, err error) {
 	return ioutil.ReadFile(kc.keyPath)
 }
 
+// EmailTo returns the list of addresses to email when this key is accessed.
 func (kc *KeyConfig) EmailTo() ([]string, error) {
 	contents, err := ioutil.ReadFile(kc.emailToPath)
 	if os.IsNotExist(err) {

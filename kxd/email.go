@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// EmailBody represents the body of an email message to sent.
 type EmailBody struct {
 	From       string
 	To         string
@@ -52,6 +53,8 @@ func init() {
 	template.Must(emailTmpl.Parse(emailTmplBody))
 }
 
+// NameToString converts a pkix.Name from a certificate to a human-friendly
+// string.
 func NameToString(name pkix.Name) string {
 	s := make([]string, 0)
 	for _, c := range name.Country {
@@ -71,9 +74,10 @@ func NameToString(name pkix.Name) string {
 	return strings.Join(s, " ")
 }
 
+// SendMail sends an email notifying of an access to the given key.
 func SendMail(kc *KeyConfig, req *Request,
 	chains [][]*x509.Certificate) error {
-	if *smtp_addr == "" {
+	if *smtpAddr == "" {
 		req.Printf("Skipping notifications")
 		return nil
 	}
@@ -94,7 +98,7 @@ func SendMail(kc *KeyConfig, req *Request,
 
 	now := time.Now()
 	body := EmailBody{
-		From:       *email_from,
+		From:       *emailFrom,
 		To:         strings.Join(emailTo, ", "),
 		Key:        keyPath,
 		Time:       now,
@@ -111,6 +115,6 @@ func SendMail(kc *KeyConfig, req *Request,
 		return err
 	}
 
-	return smtp.SendMail(*smtp_addr, nil, *email_from, emailTo,
+	return smtp.SendMail(*smtpAddr, nil, *emailFrom, emailTo,
 		msg.Bytes())
 }

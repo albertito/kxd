@@ -20,15 +20,15 @@ import (
 
 const defaultPort = 19840
 
-var server_cert = flag.String(
+var serverCert = flag.String(
 	"server_cert", "", "File containing valid server certificate(s)")
-var client_cert = flag.String(
+var clientCert = flag.String(
 	"client_cert", "", "File containing the client certificate")
-var client_key = flag.String(
+var clientKey = flag.String(
 	"client_key", "", "File containing the client private key")
 
-func LoadServerCerts() (*x509.CertPool, error) {
-	pemData, err := ioutil.ReadFile(*server_cert)
+func loadServerCerts() (*x509.CertPool, error) {
+	pemData, err := ioutil.ReadFile(*serverCert)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func hasPort(s string) bool {
 	return strings.LastIndex(s, ":") > strings.LastIndex(s, "]")
 }
 
-func ExtractURL(rawurl string) (*url.URL, error) {
+func extractURL(rawurl string) (*url.URL, error) {
 	serverURL, err := url.Parse(rawurl)
 	if err != nil {
 		return nil, err
@@ -78,19 +78,19 @@ func ExtractURL(rawurl string) (*url.URL, error) {
 	return serverURL, nil
 }
 
-func MakeTLSConf() *tls.Config {
+func makeTLSConf() *tls.Config {
 	var err error
 
 	tlsConf := &tls.Config{}
 	tlsConf.Certificates = make([]tls.Certificate, 1)
 	tlsConf.Certificates[0], err = tls.LoadX509KeyPair(
-		*client_cert, *client_key)
+		*clientCert, *clientKey)
 	if err != nil {
 		log.Fatalf("Failed to load keys: %s", err)
 	}
 
 	// Compare against the server certificates.
-	serverCerts, err := LoadServerCerts()
+	serverCerts, err := loadServerCerts()
 	if err != nil {
 		log.Fatalf("Failed to load server certs: %s", err)
 	}
@@ -104,14 +104,14 @@ func main() {
 	flag.Parse()
 
 	tr := &http.Transport{
-		TLSClientConfig: MakeTLSConf(),
+		TLSClientConfig: makeTLSConf(),
 	}
 
 	client := &http.Client{
 		Transport: tr,
 	}
 
-	serverURL, err := ExtractURL(flag.Arg(0))
+	serverURL, err := extractURL(flag.Arg(0))
 	if err != nil {
 		log.Fatalf("Failed to extract the URL: %s", err)
 	}
