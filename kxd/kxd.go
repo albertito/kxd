@@ -38,6 +38,9 @@ var emailFrom = flag.String(
 	"email_from", "", "Email address to send email from")
 var logFile = flag.String(
 	"logfile", "", "File to write logs to, use '-' for stdout")
+var hookPath = flag.String(
+	"hook", "/etc/kxd/hook",
+	"Hook to run before authorizing keys (skipped if it doesn't exist)")
 
 // Logger we will use to log entries.
 var logging *log.Logger
@@ -164,6 +167,13 @@ func HandlerV1(w http.ResponseWriter, httpreq *http.Request) {
 		req.Printf("Error getting key data: %s", err)
 		http.Error(w, "Error getting key data",
 			http.StatusInternalServerError)
+		return
+	}
+
+	err = RunHook(keyConf, &req, validChains)
+	if err != nil {
+		req.Printf("Prevented by hook: %s", err)
+		http.Error(w, "Prevented by hook", http.StatusForbidden)
 		return
 	}
 

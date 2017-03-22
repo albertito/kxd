@@ -26,6 +26,7 @@ import ssl
 import subprocess
 import sys
 import tempfile
+import textwrap
 import time
 import unittest
 
@@ -213,7 +214,9 @@ def launch_daemon(cfg):
             "--data_dir=%s/data" % cfg,
             "--key=%s/key.pem" % cfg,
             "--cert=%s/cert.pem" % cfg,
-            "--logfile=%s/log" % cfg]
+            "--logfile=%s/log" % cfg,
+            "--hook=%s/hook" % cfg
+    ]
     print "Launching server: ", " ".join(args)
     return subprocess.Popen(args)
 
@@ -225,6 +228,7 @@ class TestCase(unittest.TestCase):
         self.daemon = None
         self.ca = None    # pylint: disable=invalid-name
         self.launch_server(self.server)
+        self.longMessage = True
 
     def tearDown(self):
         if self.daemon:
@@ -550,6 +554,46 @@ class Delegation(TestCase):
 
         key = self.client.call(self.ca.cert_path(), "kxd://localhost/k1")
         self.assertEquals(key, self.server.keys["k1"])
+
+
+class Hook(TestCase):
+    """Test cases for hook support."""
+
+    HOOK_SCRIPT_TMPL = textwrap.dedent("""
+        #!/bin/sh
+        pwd > hook-output
+        env >> hook-output
+        exit {exit_code}
+        """.strip())
+
+    def write_hook(self, exit_code):
+        path = self.server.path + "/hook"
+        script = self.HOOK_SCRIPT_TMPL.format(exit_code=exit_code)
+
+        open(path, "w").write(script)
+        os.chmod(path, 0770)
+
+    def test_simple(self):
+        self.write_hook(exit_code=0)
+
+        # Normal successful case.
+        self.server.new_key("k1",
+                            allowed_clients=[self.client.cert()],
+                            allowed_hosts=["localhost"])
+        key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
+        self.assertEquals(key, self.server.keys["k1"])
+
+        hook_out = open(self.server.path + "/data/hook-output").read()
+        self.assertIn("CLIENT_CERT_SUBJECT=OU=kxd-tests-client", hook_out)
+
+        # Failure caused by the hook exiting with error.
+        self.write_hook(exit_code=1)
+        self.assertClientFails("kxd://localhost/k1", "Prevented by hook")
+
+        # Failure caused by the hook not being executable.
+        self.write_hook(exit_code=0)
+        os.chmod(self.server.path + "/hook", 0660)
+        self.assertClientFails("kxd://localhost/k1", "Prevented by hook")
 
 
 if __name__ == "__main__":
