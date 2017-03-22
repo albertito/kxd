@@ -4,8 +4,7 @@ language: go
 go_import_path: blitiri.com.ar/go/kxd
 
 go:
-    - 1.4  # Debian stable (jessie) relies on this.
-    - 1.7
+    - 1.7  # (Soon to be) Debian stable relies on this.
     - tip
 
 addons:
