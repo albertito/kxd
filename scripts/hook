@@ -1,0 +1,30 @@
+#!/bin/bash
+#
+# Example kxd hook, which uses the system's sendmail to send a notification
+# via email.
+#
+# Note that if the script fails, kxd will NOT send the key.
+#
+
+echo "Date: $(date --rfc-2822)
+From: $MAIL_FROM
+To: $EMAIL_TO
+Subject: Access to key $KEY_PATH
+
+Key: $KEY_PATH
+Accessed by: $REMOTE_ADDR
+On: $(date)
+
+Client certificate:
+  Signature: ${CLIENT_CERT_SIGNATURE:0:40}...
+  Subject: $CLIENT_CERT_SUBJECT
+
+Authorizing chains:
+  $CHAIN_0
+  $CHAIN_1
+  $CHAIN_2
+
+" | sendmail -t
+
+exit $?
+
