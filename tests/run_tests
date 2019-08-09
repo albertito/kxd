@@ -502,12 +502,8 @@ class Delegation(TestCase):
 
         # The server is signed by the CA, but the CA is unknown to the client.
         # But the client knows the server directly, so it's allowed.
-        #
-        # NOTE: go <= 1.7 rejected this case, it was only allowed during the
-        # 1.8 development cycle (8ad70a5), so comment it out for now.
-        #
-        #key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
-        #self.assertEquals(key, self.server.keys["k1"])
+        key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
+        self.assertEquals(key, self.server.keys["k1"])
 
         # Same as above, but give the wrong CA.
         ca2 = CA()
@@ -536,15 +532,11 @@ class Delegation(TestCase):
 
         # The client is signed by the CA, but the CA is unknown to the server.
         # But the server it knows the client directly, so it's allowed.
-        #
-        # NOTE: go <= 1.7 rejected this case, it was only allowed during the
-        # 1.8 development cycle (8ad70a5), so comment it out for now.
-        #
-        #self.server.new_key("k3",
-        #                    allowed_clients=[self.client.cert()],
-        #                    allowed_hosts=["localhost"])
-        #key = self.client.call(self.server.cert_path(), "kxd://localhost/k3")
-        #self.assertEquals(key, self.server.keys["k3"])
+        self.server.new_key("k3",
+                            allowed_clients=[self.client.cert()],
+                            allowed_hosts=["localhost"])
+        key = self.client.call(self.server.cert_path(), "kxd://localhost/k3")
+        self.assertEquals(key, self.server.keys["k3"])
 
     def test_both_delegated(self):
         self.prepare(server_self_sign=False, client_self_sign=False)
