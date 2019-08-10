@@ -1,5 +1,6 @@
 out/
 *.swp
+.*
 
 # Just in case, we ignore all .pem so noone commits them by accident.
 *.pem

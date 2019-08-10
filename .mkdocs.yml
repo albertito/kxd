@@ -1,0 +1,9 @@
+site_name: kxd
+docs_dir: doc
+theme: readthedocs
+
+markdown_extensions:
+  - codehilite:
+      guess_lang: false
+  - attr_list
+

@@ -1,0 +1,54 @@
+=head1 NAME
+
+kxc - Key exchange client
+
+=head1 SYNOPSIS
+
+B<kxc> [I<options>...]
+
+
+=head1 DESCRIPTION
+
+kxc is a client for L<kxd(1)>, a key exchange daemon.
+
+It will take a client key and certificate, the expected server certificate,
+and a URL to the server (like C<kxd://server/host1/key1>), and it will print
+on standard output the returned key (the contents of the corresponding key
+file on the server).
+
+There are scripts to tie this with cryptsetup's infrastructure to make the
+opening of encrypted devices automatic; see L<kxc-cryptsetup(1)> for the
+details.
+
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--client_key>=I<file>
+
+File containing the client private key (in PAM format).
+
+=item B<--client_cert>=I<file>
+
+File containing the client certificate that corresponds to the given key (in
+PAM format).
+
+=item B<--server_cert>=I<file>
+
+File containing valid server certificate (in PAM format).
+
+=back
+
+
+=head1 CONTACT
+
+L<Main website|https://blitiri.com.ar/p/kxd>.
+
+If you have any questions, comments or patches please send them to
+C<albertito@blitiri.com.ar>.
+
+
+=head1 SEE ALSO
+
+L<kxc-cryptsetup(1)>, L<kxd(1)>.

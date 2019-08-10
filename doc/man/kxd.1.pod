@@ -1,0 +1,131 @@
+=head1 NAME
+
+kxd - Key exchange daemon
+
+=head1 SYNOPSIS
+
+B<kxd> [I<options>...]
+
+
+=head1 DESCRIPTION
+
+kxd is a key exchange daemon, which serves blobs of data (keys) over https.
+
+It can be used to get keys remotely instead of using local storage.
+The main use case is to get keys to open dm-crypt devices automatically,
+without having to store them on the local machine.
+
+=head1 SETUP
+
+The server configuration is stored in a root directory (F</etc/kxd/data/> by
+default), and within there, with per-key directories (e.g.
+F</etc/kxd/data/host1/key1/>), each containing the following files:
+
+=over 8
+
+=item F<key>
+
+Contains the key to give to the client.
+
+=item F<allowed_clients>
+
+Contains one or more PEM-encoded client certificates that will be allowed to
+request the key. If not present, then no clients will be allowed to access
+this key.
+
+=item F<allowed_hosts>
+
+Contains one or more host names (one per line). If not present, then all hosts
+will be allowed to access that key (as long as they are authorized with a
+valid client certificate).
+
+=item F<email_to>
+
+Contains one or more email destinations to notify (one per line).  If not
+present, then no notifications will be sent upon key accesses.
+
+=back
+
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--key>=I<file>
+
+Private key to use (in PAM format). Defaults to F</etc/kxd/key.pem>.
+
+=item B<--cert>=I<file>
+
+Certificate to use (in PAM format); must match the given key. Defaults to
+F</etc/kxd/cert.pem>.
+
+=item B<--data_dir>=I<directory>
+
+Data directory, where the key and configuration live (see the SETUP section
+above). Defaults to F</etc/kxd/data>.
+
+=item B<--ip_addr>=I<ip-address>
+
+IP address to listen on. Defaults to all.
+
+=item B<--logfile>=I<file>
+
+File to write logs to, use "-" for stdout. By default, the daemon will log to
+syslog.
+
+=item B<--port>=I<port>
+
+Port to listen on. The default port is 19840.
+
+=item B<--email_from>=I<email-address>
+
+Email address to send email from.
+
+=item B<--smtp_addr>=I<host:port>
+
+Address of the SMTP server to use to send emails. If none is given, then
+emails will not be sent.
+
+=item B<--hook>=I<file>
+
+Script to run before authorizing keys. Skipped if it doesn't exist. Defaults
+to F</etc/kxd/hook>.
+
+=back
+
+
+=head1 FILES
+
+=over 8
+
+=item F</etc/kxd/key.pem>
+
+Private key to use (in PAM format).
+
+=item F</etc/kxd/cert.pem>
+
+Certificate to use (in PAM format); must match the given key.
+
+=item F</etc/kxd/hook>
+
+Script to run before authorizing keys. Skipped if it doesn't exist.
+
+=item F</etc/kxd/data/>
+
+Data directory, where the keys and their configuration live.
+
+=back
+
+
+=head1 CONTACT
+
+L<Main website|https://blitiri.com.ar/p/kxd>.
+
+If you have any questions, comments or patches please send them to
+C<albertito@blitiri.com.ar>.
+
+
+=head1 SEE ALSO
+
+L<kxc(1)>, L<kxc-cryptsetup(1)>.

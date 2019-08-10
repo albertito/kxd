@@ -1,0 +1,60 @@
+=head1 NAME
+
+kxc-cryptsetup - Cryptsetup helper to kxc
+
+=head1 SYNOPSIS
+
+B<kxc-cryptsetup> I<NAME>
+
+
+=head1 DESCRIPTION
+
+L<kxc(1)> is a client for L<kxd(1)>, a key exchange daemon.
+
+kxc-cryptsetup is a convenience wrapper for invoking kxc while taking the
+options from the files in F</etc/kxc/>.
+
+
+=head1 OPTIONS
+
+Its only command-line argument is a descriptive name, which will be used to
+find the configuration files.
+
+
+=head1 FILES
+
+For a given I<NAME> that is passed as the only command-line argument, the
+following files are needed:
+
+=over 8
+
+=item F</etc/kxc/NAME.key.pem>
+
+Private key to use.
+
+=item F</etc/kxc/NAME.cert.pem>
+
+Certificate to use. Must match the given key.
+
+=item F</etc/kxc/NAME.server_cert.pem>
+
+Server certificate, used to validate the server.
+
+=item F</etc/kxc/NAME.url>
+
+Contains the URL to the key; usually in the form of C<kxd://server/name>.
+
+=back
+
+
+=head1 CONTACT
+
+L<Main website|https://blitiri.com.ar/p/kxd>.
+
+If you have any questions, comments or patches please send them to
+C<albertito@blitiri.com.ar>.
+
+
+=head1 SEE ALSO
+
+L<kxc(1)>, L<kxd(1)>, L<crypttab(5)>, L<cryptsetup(8)>.
