@@ -9,17 +9,8 @@ import (
 	"strings"
 )
 
-func fileStat(path string) (os.FileInfo, error) {
-	fd, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return fd.Stat()
-}
-
 func isDir(path string) (bool, error) {
-	fi, err := fileStat(path)
+	fi, err := os.Stat(path)
 	if err != nil {
 		return false, err
 	}
@@ -28,7 +19,7 @@ func isDir(path string) (bool, error) {
 }
 
 func isRegular(path string) (bool, error) {
-	fi, err := fileStat(path)
+	fi, err := os.Stat(path)
 	if err != nil {
 		return false, err
 	}
