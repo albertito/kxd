@@ -90,7 +90,7 @@ func (kc *KeyConfig) LoadClientCerts() error {
 	}
 
 	if !kc.allowedClientCerts.AppendCertsFromPEM(rawContents) {
-		return fmt.Errorf("Error parsing client certificate file")
+		return fmt.Errorf("error parsing client certificate file")
 	}
 
 	return nil
@@ -162,7 +162,7 @@ func (kc *KeyConfig) IsHostAllowed(addr string) error {
 		}
 	}
 
-	return fmt.Errorf("Host %q not allowed", host)
+	return fmt.Errorf("host %q not allowed", host)
 }
 
 // Key returns the private key.

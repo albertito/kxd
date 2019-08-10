@@ -65,7 +65,7 @@ func (req *Request) KeyPath() (string, error) {
 
 	// We expect the path to be "/v1/path/to/key".
 	if len(s) < 2 || !(s[0] == "" || s[1] == "v1") {
-		return "", fmt.Errorf("Invalid path %q", s)
+		return "", fmt.Errorf("invalid path %q", s)
 	}
 
 	return strings.Join(s[2:], "/"), nil

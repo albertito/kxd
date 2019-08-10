@@ -35,7 +35,7 @@ func loadServerCerts() (*x509.CertPool, error) {
 
 	pool := x509.NewCertPool()
 	if !pool.AppendCertsFromPEM(pemData) {
-		return nil, fmt.Errorf("Error appending certificates")
+		return nil, fmt.Errorf("error appending certificates")
 	}
 
 	return pool, nil
@@ -61,7 +61,7 @@ func extractURL(rawurl string) (*url.URL, error) {
 	case "http", "kxd":
 		serverURL.Scheme = "https"
 	default:
-		return nil, fmt.Errorf("Unsupported URL schema (try kxd://)")
+		return nil, fmt.Errorf("unsupported URL schema (try kxd://)")
 	}
 
 	// The path must begin with /v1/, although we hide that from the user
