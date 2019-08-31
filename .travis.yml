@@ -10,7 +10,7 @@ go:
 addons:
     apt:
         packages:
-            - python
+            - python3
             - openssl
 
 # Nothing to do for install, the tests will build the binaries anyway.

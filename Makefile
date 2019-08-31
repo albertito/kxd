@@ -20,7 +20,7 @@ vet:
 	$(GO) tool vet .
 
 test: kxd kxc
-	python tests/run_tests -b
+	tests/run_tests -b
 
 tests: test
 

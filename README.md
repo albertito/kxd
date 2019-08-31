@@ -78,7 +78,7 @@ The configuration helper scripts (`create-kxd-config`, `kxc-add-key`, etc.)
 depend on: `bash`, `openssl` (the binary), and core utilities (`mkdir`, `dd`,
 etc.).
 
-Testing needs Python 2.7, and openssl (the binary).
+Testing needs Python 3, and openssl (the binary).
 
 
 ## Bugs and contact
