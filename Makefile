@@ -17,7 +17,7 @@ fmt:
 	gofmt -w .
 
 vet:
-	$(GO) tool vet .
+	$(GO) vet ./...
 
 test: kxd kxc
 	tests/run_tests -b
