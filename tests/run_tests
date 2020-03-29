@@ -407,6 +407,7 @@ class TrickyRequests(TestCase):
         conn = self.https_connection("localhost", 19840)
         try:
             conn.request("GET", "/v1/")
+            conn.getresponse()
             conn.close()
         except ssl.SSLError as err:
             self.assertEqual(err.reason, "SSLV3_ALERT_BAD_CERTIFICATE")
