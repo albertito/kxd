@@ -18,6 +18,7 @@ kxc:
 
 fmt:
 	gofmt -w .
+	black tests/run_tests
 
 vet:
 	$(GO) vet ./...
