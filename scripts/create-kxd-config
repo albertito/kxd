@@ -7,6 +7,11 @@
 #
 # It should be run under the same user as kxd itself.
 
+if [ "$1" == "" ]; then
+	echo "Usage: $0 <hostname>"
+	exit 1
+fi
+
 set -e
 
 # Create the base configuration directory.
@@ -18,19 +23,12 @@ mkdir -p /etc/kxd/data
 
 # Create a private key for the server.
 if ! [ -e /etc/kxd/key.pem ]; then
-	echo "Generating private key (/etc/kxd/key.pem)"
-	openssl genrsa -out /etc/kxd/key.pem 2048
+	kxgencert \
+		-host "${1?}" \
+		-organization "kxd@$HOSTNAME" \
+		-key /etc/kxd/key.pem \
+		-cert /etc/kxd/cert.pem
 	chmod 400 /etc/kxd/key.pem
 else
 	echo "Private key already exists (/etc/kxd/key.pem)"
-fi
-
-# And a self-signed certificate.
-if ! [ -e /etc/kxd/cert.pem ]; then
-	echo "Generating certificate (/etc/kxd/cert.pem)"
-	openssl req -new -x509 -batch -days 3650 \
-		-subj "/commonName=*/organizationalUnitName=kxd@$HOSTNAME/" \
-		-key /etc/kxd/key.pem -out /etc/kxd/cert.pem
-else
-	echo "Certificate already exists (/etc/kxd/cert.pem)"
 fi

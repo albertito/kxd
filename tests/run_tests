@@ -42,10 +42,6 @@ tracemalloc.start()
 BINS = os.path.abspath(
     os.path.dirname(os.path.realpath(__file__)) + "/../out")
 
-# Path to the test OpenSSL configuration.
-OPENSSL_CONF = os.path.abspath(
-    os.path.dirname(os.path.realpath(__file__)) + "/openssl.cnf")
-
 TEMPDIR = "/does/not/exist"
 
 # User the script is running as. Just informational, for troubleshooting
@@ -58,6 +54,8 @@ def setUpModule():    # pylint: disable=invalid-name
         raise RuntimeError("kxd not found at " + BINS + "/kxd")
     if not os.path.isfile(BINS + "/kxc"):
         raise RuntimeError("kxc not found at " + BINS + "/kxc")
+    if not os.path.isfile(BINS + "/kxgencert"):
+        raise RuntimeError("kxgencert not found at " + BINS + "/kxgencert")
 
     global TEMPDIR    # pylint: disable=global-statement
     TEMPDIR = tempfile.mkdtemp(prefix="kxdtest-")
@@ -86,29 +84,15 @@ class Config:
         self.path = tempfile.mkdtemp(prefix="config-%s-" % name, dir=TEMPDIR)
         self.name = name
 
-    def gen_certs(self, self_sign=True):
+    def gen_cert(self):
         try:
-            cmd = ["openssl", "genrsa",
-                   "-out", "%s/key.pem" % self.path, "2048"]
+            cmd = [BINS + "/kxgencert",
+                   "-organization=kxd-tests-%s" % self.name,
+                   "-key=" + self.key_path(),
+                   "-cert=" + self.cert_path()]
             subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as err:
-            print("openssl call failed, output: %r" % err.output)
-            raise
-
-        ouname = "kxd-tests-%s" % self.name
-        req_args = ["openssl", "req", "-new", "-batch",
-                    "-subj", ("/commonName=*" +
-                              "/organizationalUnitName=%s" % ouname),
-                    "-key", "%s/key.pem" % self.path]
-        if self_sign:
-            req_args.extend(["-x509", "-out", "%s/cert.pem" % self.path])
-        else:
-            req_args.extend(["-out", "%s/cert.csr" % self.path])
-
-        try:
-            subprocess.check_output(req_args, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as err:
-            print("openssl call failed, output: %r" % err.output)
+            print("kxgencert call failed, output: %r" % err.output)
             raise
 
     def cert_path(self):
@@ -117,61 +101,15 @@ class Config:
     def key_path(self):
         return self.path + "/key.pem"
 
-    def csr_path(self):
-        return self.path + "/cert.csr"
-
     def cert(self):
         return read_all(self.path + "/cert.pem")
 
 
-class CA:
-    def __init__(self):
-        self.path = tempfile.mkdtemp(prefix="config-ca-", dir=TEMPDIR)
-        os.makedirs(self.path + "/kxd-ca/newcerts/")
-
-        try:
-            # We need to run the CA commands from within the path.
-            with pushd(self.path):
-                open("kxd-ca/index.txt", "w").close()
-                with open("kxd-ca/serial", "w") as serial:
-                    serial.write("1000\n")
-                subprocess.check_output(
-                    ["openssl", "req", "-new", "-x509", "-batch",
-                     "-config", OPENSSL_CONF,
-                     "-subj", ("/commonName=*" +
-                               "/organizationalUnitName=kxd-tests-ca"),
-                     "-extensions", "v3_ca", "-nodes",
-                     "-keyout", "cakey.pem",
-                     "-out", "cacert.pem"],
-                    stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as err:
-            print("openssl call failed, output: %r" % err.output)
-            raise
-
-    def sign(self, csr):
-        try:
-            with pushd(self.path):
-                subprocess.check_output(
-                    ["openssl", "ca", "-batch", "-config", OPENSSL_CONF,
-                     "-keyfile", "cakey.pem", "-cert", "cacert.pem",
-                     "-in", csr, "-out", "%s.pem" % os.path.splitext(csr)[0]],
-                    stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as err:
-            print("openssl call failed, output: %r" % err.output)
-            raise
-
-    def cert_path(self):
-        return self.path + "/cacert.pem"
-
-    def cert(self):
-        return read_all(self.path + "/cacert.pem")
-
-
 class ServerConfig(Config):
-    def __init__(self, self_sign=True, name="server"):
+    def __init__(self, name="server"):
         Config.__init__(self, name)
         self.keys = {}
-        self.gen_certs(self_sign)
+        self.gen_cert()
 
     def new_key(self, name, allowed_clients=None, allowed_hosts=None):
         self.keys[name] = os.urandom(1024)
@@ -193,9 +131,9 @@ class ServerConfig(Config):
 
 
 class ClientConfig(Config):
-    def __init__(self, self_sign=True, name="client"):
+    def __init__(self, name="client"):
         Config.__init__(self, name)
-        self.gen_certs(self_sign)
+        self.gen_cert()
 
     def call(self, server_cert, url):
         args = [BINS + "/kxc",
@@ -469,90 +407,6 @@ class BrokenServerConfig(TestCase):
         self.assertClientFails("kxd://localhost/k1", "404 Not Found")
 
 
-class Delegation(TestCase):
-    """Tests for CA delegations."""
-    def setUp(self):
-        # For these tests, we don't have a common setup, as each will create
-        # server and clients in a slightly different way.
-        self.daemon = None
-
-    def prepare(self, server_self_sign=True, client_self_sign=True,
-                ca_sign_server=None, ca_sign_client=None):
-        self.server = ServerConfig(self_sign=server_self_sign)
-        self.client = ClientConfig(self_sign=client_self_sign)
-
-        self.ca = CA()
-        if ca_sign_server is None:
-            ca_sign_server = not server_self_sign
-        if ca_sign_client is None:
-            ca_sign_client = not client_self_sign
-
-        if ca_sign_server:
-            self.ca.sign(self.server.csr_path())
-        if ca_sign_client:
-            self.ca.sign(self.client.csr_path())
-
-        self.launch_server(self.server)
-
-    def test_server_delegated(self):
-        self.prepare(server_self_sign=False)
-
-        self.server.new_key("k1",
-                            allowed_clients=[self.client.cert()],
-                            allowed_hosts=["localhost"])
-
-        # Successful request.
-        key = self.client.call(self.ca.cert_path(), "kxd://localhost/k1")
-        self.assertEqual(key, self.server.keys["k1"])
-
-        # The server is signed by the CA, but the CA is unknown to the client.
-        # But the client knows the server directly, so it's allowed.
-        key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
-        self.assertEqual(key, self.server.keys["k1"])
-
-        # Same as above, but give the wrong CA.
-        ca2 = CA()
-        self.assertClientFails("kxd://localhost/k1",
-                               "certificate signed by unknown authority",
-                               cert_path=ca2.cert_path())
-
-    def test_client_delegated(self):
-        self.prepare(client_self_sign=False)
-
-        # Successful request.
-        self.server.new_key("k1",
-                            allowed_clients=[self.ca.cert()],
-                            allowed_hosts=["localhost"])
-        key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
-        self.assertEqual(key, self.server.keys["k1"])
-
-        # The CA signing the client is unknown to the server.
-        ca2 = CA()
-        self.server.new_key("k2",
-                            allowed_clients=[ca2.cert()],
-                            allowed_hosts=["localhost"])
-        self.assertClientFails("kxd://localhost/k2",
-                               "403 Forbidden.*No allowed certificate found",
-                               cert_path=self.server.cert_path())
-
-        # The client is signed by the CA, but the CA is unknown to the server.
-        # But the server it knows the client directly, so it's allowed.
-        self.server.new_key("k3",
-                            allowed_clients=[self.client.cert()],
-                            allowed_hosts=["localhost"])
-        key = self.client.call(self.server.cert_path(), "kxd://localhost/k3")
-        self.assertEqual(key, self.server.keys["k3"])
-
-    def test_both_delegated(self):
-        self.prepare(server_self_sign=False, client_self_sign=False)
-        self.server.new_key("k1",
-                            allowed_clients=[self.ca.cert()],
-                            allowed_hosts=["localhost"])
-
-        key = self.client.call(self.ca.cert_path(), "kxd://localhost/k1")
-        self.assertEqual(key, self.server.keys["k1"])
-
-
 class Hook(TestCase):
     """Test cases for hook support."""
 
@@ -582,7 +436,7 @@ class Hook(TestCase):
         self.assertEqual(key, self.server.keys["k1"])
 
         hook_out = read_all(self.server.path + "/data/hook-output")
-        self.assertIn("CLIENT_CERT_SUBJECT=OU=kxd-tests-client", hook_out)
+        self.assertIn("CLIENT_CERT_SUBJECT=O=kxd-tests-client", hook_out)
 
         # Failure caused by the hook exiting with error.
         self.write_hook(exit_code=1)

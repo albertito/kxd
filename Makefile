@@ -2,10 +2,13 @@
 GO = go
 OUTDIR = ./out
 
-default: kxd kxc
+default: kxd kxc kxgencert
 
 kxd:
 	$(GO) build -o $(OUTDIR)/kxd ./kxd
+
+kxgencert:
+	$(GO) build -o $(OUTDIR)/kxgencert ./kxgencert
 
 # For the client, because it can be run in a very limited environment without
 # glibc (like initramfs), we build it using the native go networking so it can
@@ -19,7 +22,7 @@ fmt:
 vet:
 	$(GO) vet ./...
 
-test: kxd kxc
+test: kxd kxc kxgencert
 	tests/run_tests -b
 
 tests: test
@@ -33,13 +36,18 @@ SYSTEMDDIR=$(shell pkg-config systemd --variable=systemdsystemunitdir)
 # Install utility, we assume it's GNU/BSD compatible.
 INSTALL=install
 
-install-all: install-kxd install-init.d install-kxc install-initramfs
+install-all: install-kxd install-kxc install-kxgencert \
+	install-init.d install-initramfs
 
 install-kxd: kxd
 	$(INSTALL) -d $(PREFIX)/bin
 	$(INSTALL) -m 0755 out/kxd $(PREFIX)/bin/
 	$(INSTALL) -m 0755 scripts/create-kxd-config $(PREFIX)/bin/
 	$(INSTALL) -m 0755 scripts/kxd-add-client-key $(PREFIX)/bin/
+
+install-kxgencert: kxgencert
+	$(INSTALL) -d $(PREFIX)/bin
+	$(INSTALL) -m 0755 out/kxgencert $(PREFIX)/bin/
 
 install-init.d: install-kxd
 	$(INSTALL) -m 0755 scripts/init.d/kxd $(ETCDIR)/init.d/kxd
@@ -67,7 +75,7 @@ install-initramfs: install-kxc
 		$(PREFIX)/share/initramfs-tools/scripts/init-premount/
 
 
-.PHONY: kxd kxc
+.PHONY: kxd kxc kxgencert
 .PHONY: install-all install-kxd install-init.d install-kxc install-initramfs
 .PHONY: test tests
 

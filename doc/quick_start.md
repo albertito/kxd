@@ -19,10 +19,12 @@ be similar but may differ on some of the details (specially on the
 Install [kxd] on the server, via your distribution packages (e.g. `apt install
 kxd`), or directly from source.
 
-Then, run `create-kxd-config`, which will create the configuration
+Then, run `create-kxd-config <hostname>`, which will create the configuration
 directories, and generate a [self-signed] key/cert pair for the server (valid
 for 10 years).
-Everything is in `/etc/kxd/`.
+
+For the hostname, use the name or IP that the clients will use to reach the
+server. You can use more than one, separated with commas.
 
 
 ## Client setup

@@ -7,13 +7,13 @@ go_import_path: blitiri.com.ar/go/kxd
 
 go:
     - 1.11  # Debian stable.
-    - tip
+    - stable
+    - master
 
 addons:
     apt:
         packages:
             - python3
-            - openssl
 
 # Nothing to do for install, the tests will build the binaries anyway.
 install: true
