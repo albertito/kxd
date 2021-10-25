@@ -8,7 +8,7 @@ It can be used to get keys remotely instead of using local storage.
 The main use case is to get keys to open dm-crypt devices automatically,
 without having to store them on the local machine.
 
-[![Travis-CI build status](https://travis-ci.org/albertito/kxd.svg?branch=master)](https://travis-ci.org/albertito/kxd)
+[![Gitlab CI status](https://gitlab.com/albertito/kxd/badges/master/pipeline.svg)](https://gitlab.com/albertito/kxd/pipelines)
 
 
 ## Quick start
