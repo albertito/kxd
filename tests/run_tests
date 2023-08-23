@@ -357,7 +357,11 @@ class TrickyRequests(TestCase):
             conn.getresponse()
             conn.close()
         except ssl.SSLError as err:
-            self.assertEqual(err.reason, "SSLV3_ALERT_BAD_CERTIFICATE")
+            # Expect one of these errors (the specific one can change
+            # depending on the version of OpenSSL).
+            self.assertIn(err.reason,
+                          ["SSLV3_ALERT_BAD_CERTIFICATE",
+                           "TLSV13_ALERT_CERTIFICATE_REQUIRED"])
         else:
             self.fail("Client call did not fail as expected")
 
