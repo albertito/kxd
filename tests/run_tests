@@ -225,7 +225,9 @@ class Simple(TestCase):
 
         # Normal successful case.
         self.server.new_key(
-            "k1", allowed_clients=[self.client.cert()], allowed_hosts=["localhost"]
+            "k1",
+            allowed_clients=[self.client.cert()],
+            allowed_hosts=["localhost"],
         )
         key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
         self.assertEqual(key, self.server.keys["k1"])
@@ -243,7 +245,9 @@ class Simple(TestCase):
         self.server.new_key(
             "k4", allowed_clients=[self.client.cert()], allowed_hosts=[]
         )
-        self.assertClientFails("kxd://localhost/k4", "403 Forbidden.*Host not allowed")
+        self.assertClientFails(
+            "kxd://localhost/k4", "403 Forbidden.*Host not allowed"
+        )
 
         # Nothing allowed -> 403.
         # We don't restrict the reason of failure, that's not defined in this
@@ -282,7 +286,9 @@ class Multiples(TestCase):
 
         # Only one client allowed.
         self.server.new_key(
-            "k2", allowed_clients=[self.client.cert()], allowed_hosts=["localhost"]
+            "k2",
+            allowed_clients=[self.client.cert()],
+            allowed_hosts=["localhost"],
         )
         key = self.client.call(self.server.cert_path(), "kxd://localhost/k2")
         self.assertEqual(key, self.server.keys["k2"])
@@ -303,7 +309,9 @@ class Multiples(TestCase):
             )
 
         for key in keys:
-            data = self.client.call(self.server.cert_path(), "kxd://localhost/%s" % key)
+            data = self.client.call(
+                self.server.cert_path(), "kxd://localhost/%s" % key
+            )
             self.assertEqual(data, self.server.keys[key])
 
             data = self.client2.call(
@@ -359,9 +367,13 @@ class TrickyRequests(TestCase):
         except ssl.SSLError as err:
             # Expect one of these errors (the specific one can change
             # depending on the version of OpenSSL).
-            self.assertIn(err.reason,
-                          ["SSLV3_ALERT_BAD_CERTIFICATE",
-                           "TLSV13_ALERT_CERTIFICATE_REQUIRED"])
+            self.assertIn(
+                err.reason,
+                [
+                    "SSLV3_ALERT_BAD_CERTIFICATE",
+                    "TLSV13_ALERT_CERTIFICATE_REQUIRED",
+                ],
+            )
         else:
             self.fail("Client call did not fail as expected")
 
@@ -384,14 +396,18 @@ class TrickyRequests(TestCase):
     def test_server_cert(self):
         rawsock = socket.create_connection(("localhost", 19840))
         sock = ssl.wrap_socket(
-            rawsock, keyfile=self.client.key_path(), certfile=self.client.cert_path()
+            rawsock,
+            keyfile=self.client.key_path(),
+            certfile=self.client.cert_path(),
         )
 
         # We don't check the cipher itself, as it depends on the environment,
         # but we should be using >= 128 bit secrets.
         self.assertTrue(sock.cipher()[2] >= 128)
 
-        server_cert = ssl.DER_cert_to_PEM_cert(sock.getpeercert(binary_form=True))
+        server_cert = ssl.DER_cert_to_PEM_cert(
+            sock.getpeercert(binary_form=True)
+        )
         self.assertEqual(server_cert, self.server.cert())
         sock.close()
 
@@ -401,7 +417,9 @@ class BrokenServerConfig(TestCase):
 
     def test_broken_client_certs(self):
         self.server.new_key(
-            "k1", allowed_clients=[self.client.cert()], allowed_hosts=["localhost"]
+            "k1",
+            allowed_clients=[self.client.cert()],
+            allowed_hosts=["localhost"],
         )
 
         # Corrupt the client certificate.
@@ -410,12 +428,15 @@ class BrokenServerConfig(TestCase):
             cfd.write("+/+BROKEN+/+")
 
         self.assertClientFails(
-            "kxd://localhost/k1", "Error loading certs|No allowed certificate found"
+            "kxd://localhost/k1",
+            "Error loading certs|No allowed certificate found",
         )
 
     def test_missing_key(self):
         self.server.new_key(
-            "k1", allowed_clients=[self.client.cert()], allowed_hosts=["localhost"]
+            "k1",
+            allowed_clients=[self.client.cert()],
+            allowed_hosts=["localhost"],
         )
 
         os.unlink(self.server.path + "/data/k1/key")
@@ -447,7 +468,9 @@ class Hook(TestCase):
 
         # Normal successful case.
         self.server.new_key(
-            "k1", allowed_clients=[self.client.cert()], allowed_hosts=["localhost"]
+            "k1",
+            allowed_clients=[self.client.cert()],
+            allowed_hosts=["localhost"],
         )
         key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
         self.assertEqual(key, self.server.keys["k1"])

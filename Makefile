@@ -17,8 +17,8 @@ kxc:
 	$(GO) build --tags netgo -a -o $(OUTDIR)/kxc ./kxc
 
 fmt:
-	gofmt -w .
-	black tests/run_tests
+	gofmt -s -w .
+	black -l 80 tests/run_tests
 
 vet:
 	$(GO) vet ./...
