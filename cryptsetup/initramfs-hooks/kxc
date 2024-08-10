@@ -23,5 +23,7 @@ esac
 # it for us if it sees it being used as a keyscript.
 copy_exec /usr/bin/kxc /bin
 
-# Install the configuration into initramfs
-cp -a /etc/kxc/ ${DESTDIR}/etc
+# Install the configuration into initramfs (if it exists).
+if [ -d /etc/kxc/ ]; then
+	cp -a /etc/kxc/ ${DESTDIR}/etc
+fi
