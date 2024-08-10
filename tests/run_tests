@@ -395,11 +395,10 @@ class TrickyRequests(TestCase):
 
     def test_server_cert(self):
         rawsock = socket.create_connection(("localhost", 19840))
-        sock = ssl.wrap_socket(
-            rawsock,
-            keyfile=self.client.key_path(),
-            certfile=self.client.cert_path(),
-        )
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.load_verify_locations(self.server.cert_path())
+        context.check_hostname = False
+        sock = context.wrap_socket(rawsock)
 
         # We don't check the cipher itself, as it depends on the environment,
         # but we should be using >= 128 bit secrets.
