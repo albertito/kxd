@@ -252,7 +252,6 @@ class Simple(TestCase):
         self.server.new_key(
             "k1",
             allowed_clients=[self.client.cert()],
-
             # Depending on the self.server.host, the client may connect to it
             # from localhost or from another IP; since it is unpredictable we
             # should allow both.
@@ -391,6 +390,41 @@ class CertFor127_0_0_1(Simple):
         self.assertEqual(key, self.server.keys["k1"])
 
 
+class CommonErrors(TestCase):
+    """Simple test cases for common errors."""
+
+    def test_invalid_schema(self):
+        self.assertClientFails("invalidschema://a/b", "unsupported URL schema")
+
+    def test_invalid_url(self):
+        self.assertClientFails(
+            " http://invalid/url",
+            "first path segment in URL cannot contain colon",
+        )
+
+    def test_empty_server_cert(self):
+        self.assertClientFails(
+            "kxd://localhost/k1",
+            "Failed to load server certs: error appending certificates",
+            cert_path="/dev/null",
+        )
+
+    def test_unknown_server_cert_file(self):
+        self.assertClientFails(
+            "kxd://localhost/k1",
+            "open /does/not/exist: no such file or directory",
+            cert_path="/does/not/exist",
+        )
+
+    def test_bad_server_cert_file(self):
+        test_dir = os.path.dirname(os.path.realpath(__file__))
+        self.assertClientFails(
+            "kxd://localhost/k1",
+            "x509: malformed certificate",
+            cert_path=test_dir + "/bad_cert/cert.pem",
+        )
+
+
 class Multiples(TestCase):
     """Tests for multiple clients and keys."""
 
@@ -518,6 +552,18 @@ class TrickyRequests(TestCase):
         # Go's http server intercepts these and gives us a 301 Moved
         # Permanently.
         self.assertEqual(response.status, 301)
+
+    def test_invalid_path(self):
+        conn = self.https_connection(
+            "localhost",
+            19840,
+            key_file=self.client.key_path(),
+            cert_file=self.client.cert_path(),
+        )
+        conn.request("GET", "/v1/a..b")
+        response = conn.getresponse()
+        conn.close()
+        self.assertEqual(response.status, 406)
 
     def test_server_cert(self):
         rawsock = socket.create_connection(("localhost", 19840))
