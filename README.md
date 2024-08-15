@@ -72,7 +72,7 @@ assumption that the server's host is secure and trusted.
 
 There are no runtime dependencies for the kxd and kxc binaries.
 
-Building requires Go 1.15.
+Building requires Go 1.21.
 
 The configuration helper scripts (`create-kxd-config`, `kxc-add-key`, etc.)
 depend on: `bash` and core utilities (`mkdir`, `dd`, etc.).
