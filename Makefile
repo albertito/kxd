@@ -5,16 +5,16 @@ OUTDIR = ./out
 default: kxd kxc kxgencert
 
 kxd:
-	$(GO) build -o $(OUTDIR)/kxd ./kxd
+	$(GO) build ${GOFLAGS} -o $(OUTDIR)/kxd ./kxd
 
 kxgencert:
-	$(GO) build -o $(OUTDIR)/kxgencert ./kxgencert
+	$(GO) build ${GOFLAGS} -o $(OUTDIR)/kxgencert ./kxgencert
 
 # For the client, because it can be run in a very limited environment without
 # glibc (like initramfs), we build it using the native go networking so it can
 # work even when glibc's resolvers are missing.
 kxc:
-	$(GO) build --tags netgo -a -o $(OUTDIR)/kxc ./kxc
+	$(GO) build ${GOFLAGS} --tags netgo -a -o $(OUTDIR)/kxc ./kxc
 
 fmt:
 	gofmt -s -w .
