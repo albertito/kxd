@@ -77,9 +77,11 @@ def pushd(path):
 
 
 class Config:
-    def __init__(self, name):
+    def __init__(self, name, host=""):
         self.path = tempfile.mkdtemp(prefix="config-%s-" % name, dir=TEMPDIR)
         self.name = name
+        self.host = host
+        self.keys = {}
 
     def gen_cert(self):
         try:
@@ -89,6 +91,8 @@ class Config:
                 "-key=" + self.key_path(),
                 "-cert=" + self.cert_path(),
             ]
+            if self.host:
+                cmd.append("-host=" + self.host)
             subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as err:
             print("kxgencert call failed, output: %r" % err.output)
@@ -102,13 +106,6 @@ class Config:
 
     def cert(self):
         return read_all(self.path + "/cert.pem")
-
-
-class ServerConfig(Config):
-    def __init__(self, name="server"):
-        Config.__init__(self, name)
-        self.keys = {}
-        self.gen_cert()
 
     def new_key(self, name, allowed_clients=None, allowed_hosts=None):
         self.keys[name] = os.urandom(1024)
@@ -128,12 +125,6 @@ class ServerConfig(Config):
                 for host in allowed_hosts:
                     hfd.write(host + "\n")
 
-
-class ClientConfig(Config):
-    def __init__(self, name="client"):
-        Config.__init__(self, name)
-        self.gen_cert()
-
     def call(self, server_cert, url):
         args = [
             BINS + "/kxc",
@@ -148,6 +139,37 @@ class ClientConfig(Config):
         except subprocess.CalledProcessError as err:
             print("Client call failed, output: %r" % err.output)
             raise
+
+
+class ServerConfig(Config):
+    def __init__(self, name="server", host=""):
+        Config.__init__(self, name, host)
+        self.gen_cert()
+
+    def call(self, server_cert, url):
+        # To prevent accidental calls and to enforce that the test cases
+        # don't mix server and client.
+        return NotImplementedError("ServerConfig does not support call")
+
+
+class ClientConfig(Config):
+    def __init__(self, name="client", host=""):
+        Config.__init__(self, name, host)
+        self.gen_cert()
+
+    def new_key(self, name, allowed_clients=None, allowed_hosts=None):
+        # To prevent accidental calls and to enforce that the test cases
+        # don't mix server and client.
+        raise NotImplementedError("ClientConfig does not support new_key")
+
+
+class StaticConfig(Config):
+    def __init__(self, path):
+        self.path = path
+        self.keys = {}
+
+    def gen_cert(self):
+        raise NotImplementedError("StaticConfig does not support gen_cert")
 
 
 def launch_daemon(cfg):
@@ -263,6 +285,54 @@ class Simple(TestCase):
             "certificate signed by unknown authority",
             cert_path=self.client.cert_path(),
         )
+
+
+class WildcardHostnamesKxgencert(Simple):
+    """Tests for certificates with DNSNames='*'.
+
+    In kxd <= 0.16, by default kxgencert (and before than, the equivalent
+    scripts) would generate certificates with DNSNames='*', and everything
+    worked okay.
+
+    But in Go 1.23, the Go TLS library started to reject such certificates (Go
+    commit 375031d8dcec9ae74d2dbc437b201107dba3bb5f).
+
+    We changed the defaults since then, but we still want to make sure that
+    the server can handle such certificates, as they might still be in use in
+    the wild.
+
+    This test uses static certificates generated with the old defaults, to
+    be absolutely sure they survive even through changes in the key generation
+    code.
+    """
+
+    _cert_dir = "wildcard_test_certs_kxgencert"
+
+    def setUp(self):
+        test_dir = os.path.dirname(os.path.realpath(__file__))
+        self.server = StaticConfig(test_dir + "/" + self._cert_dir + "/server")
+        self.client = StaticConfig(test_dir + "/" + self._cert_dir + "/client")
+
+        self.daemon = None
+        self.ca = None  # pylint: disable=invalid-name
+        self.launch_server(self.server)
+
+    def test_minimal(self):
+        self.server.new_key(
+            "k1",
+            allowed_clients=[self.client.cert()],
+            allowed_hosts=["localhost"],
+        )
+        key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
+        self.assertEqual(key, self.server.keys["k1"])
+
+    # Reuse the rest of the Simple test cases.
+
+
+class WildcardHostnamesOpenSSL(WildcardHostnamesKxgencert):
+    """Tests for certificates with DNSNames='*' generated with OpenSSL."""
+
+    _cert_dir = "wildcard_test_certs_openssl"
 
 
 class Multiples(TestCase):
