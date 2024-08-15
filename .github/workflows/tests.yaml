@@ -25,3 +25,21 @@ jobs:
           check-latest: true
       - name: test
         run: make test
+
+  coverage:
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          check-latest: true
+      - name: coverage tests
+        run: ./tests/cover.sh
+      - name: upload
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: .cover-merged.out

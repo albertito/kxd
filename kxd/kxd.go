@@ -18,8 +18,10 @@ import (
 	"log/syslog"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"strings"
+	"syscall"
 )
 
 var port = flag.Int(
@@ -216,10 +218,26 @@ func initLog() {
 		log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
 }
 
+func signalHandler() {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
+	for {
+		switch sig := <-signals; sig {
+		case syscall.SIGTERM, syscall.SIGINT:
+			logging.Printf("Received signal %s, exiting", sig)
+			os.Exit(0)
+		default:
+			logging.Printf("Received unexpected signal %s", sig)
+		}
+	}
+}
+
 func main() {
 	flag.Parse()
 
 	initLog()
+
+	go signalHandler()
 
 	if *smtpAddr == "" {
 		logging.Print(

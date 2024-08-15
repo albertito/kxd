@@ -10,6 +10,7 @@ without having to store them on the local machine.
 
 [![Docs](https://img.shields.io/badge/docs-reference-blue.svg)](https://blitiri.com.ar/p/kxd/)
 [![Tests](https://github.com/albertito/kxd/actions/workflows/tests.yaml/badge.svg)](https://github.com/albertito/kxd/actions)
+[![Coverage](https://codecov.io/gh/albertito/kxd/branch/next/graph/badge.svg?token=WMRDGeHOUK)](https://codecov.io/gh/albertito/kxd)
 
 
 ## Quick start

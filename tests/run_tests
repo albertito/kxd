@@ -201,7 +201,7 @@ class TestCase(unittest.TestCase):
 
     def tearDown(self):
         if self.daemon:
-            self.daemon.kill()
+            self.daemon.terminate()
             self.daemon.wait()
 
     def launch_server(self, server):
@@ -463,7 +463,7 @@ class Multiples(TestCase):
         key = self.client.call(server_certs_path, "kxd://localhost/k1")
         self.assertEqual(key, server1.keys["k1"])
 
-        self.daemon.kill()
+        self.daemon.terminate()
         self.daemon.wait()
         time.sleep(0.5)
         self.launch_server(server2)
