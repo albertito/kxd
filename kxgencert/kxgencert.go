@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	host = flag.String("host", "*",
+	host = flag.String("host", "localhost",
 		"Hostnames/IPs to generate the certificate for (comma separated)")
 	validFor = flag.Duration("validfor", 24*time.Hour*365*10,
 		"How long will the certificate be valid for (default: 10y)")
