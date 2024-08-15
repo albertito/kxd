@@ -9,12 +9,14 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 )
 
@@ -27,18 +29,48 @@ var clientCert = flag.String(
 var clientKey = flag.String(
 	"client_key", "", "File containing the client private key")
 
-func loadServerCerts() (*x509.CertPool, error) {
+func loadServerCerts() (*x509.CertPool, bool, error) {
 	pemData, err := ioutil.ReadFile(*serverCert)
 	if err != nil {
-		return nil, err
+		return nil, false, err
+	}
+
+	// Old server certificates can use the deprecated '*' for the server name.
+	// This is not supported by Go, but we still want to support them, so
+	// we need to identify them at parsing time.
+	hasWildcard := false
+	{
+		data := pemData[:]
+		for {
+			var block *pem.Block
+			block, data = pem.Decode(data)
+			if block == nil {
+				break
+			}
+
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return nil, false, fmt.Errorf(
+					"error parsing certificate: %s", err)
+			}
+
+			if strings.Contains(cert.Subject.CommonName, "*") {
+				hasWildcard = true
+				break
+			}
+			if slices.Contains(cert.DNSNames, "*") {
+				hasWildcard = true
+				break
+			}
+		}
 	}
 
 	pool := x509.NewCertPool()
 	if !pool.AppendCertsFromPEM(pemData) {
-		return nil, fmt.Errorf("error appending certificates")
+		return nil, false, fmt.Errorf("error appending certificates")
 	}
 
-	return pool, nil
+	return pool, hasWildcard, nil
 }
 
 // Check if the given network address has a port.
@@ -89,12 +121,46 @@ func makeTLSConf() *tls.Config {
 		log.Fatalf("Failed to load keys: %s", err)
 	}
 
-	// Compare against the server certificates.
-	serverCerts, err := loadServerCerts()
+	serverCerts, hasWildcard, err := loadServerCerts()
 	if err != nil {
 		log.Fatalf("Failed to load server certs: %s", err)
 	}
-	tlsConf.RootCAs = serverCerts
+
+	if hasWildcard {
+		// We want to do the standard verification, but ignoring the server name.
+		// This is because old certificates might not have the server name, or use
+		// '*' which was later deprecated and not supported by Go.
+		// This also makes deployment much more practical on small networks where
+		// the server name is not important.
+		//
+		// Unfortunately, there's no way to tell Go to ignore just that, so we need
+		// to do it manually.
+		// To do that, we need to set InsecureSkipVerify to true, and then provide
+		// a custom VerifyConnection function that does the verification we want.
+		// The verification is using the same logic Go does, and following the
+		// official example at
+		// https://pkg.go.dev/crypto/tls#example-Config-VerifyConnection.
+		tlsConf.InsecureSkipVerify = true
+		tlsConf.VerifyConnection = func(cs tls.ConnectionState) error {
+			opts := x509.VerifyOptions{
+				// Explicitly not care about the server name.
+				DNSName:       "",
+				Intermediates: x509.NewCertPool(),
+
+				// Compare against the server certificates.
+				Roots: serverCerts,
+			}
+			for _, cert := range cs.PeerCertificates[1:] {
+				opts.Intermediates.AddCert(cert)
+			}
+			_, err := cs.PeerCertificates[0].Verify(opts)
+			return err
+		}
+	} else {
+		// If none of the server certificates use the deprecated '*', we can
+		// use the standard verification.
+		tlsConf.RootCAs = serverCerts
+	}
 
 	return tlsConf
 }
