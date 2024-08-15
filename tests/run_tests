@@ -142,7 +142,7 @@ class Config:
 
 
 class ServerConfig(Config):
-    def __init__(self, name="server", host=""):
+    def __init__(self, name="server", host="localhost"):
         Config.__init__(self, name, host)
         self.gen_cert()
 
@@ -153,7 +153,7 @@ class ServerConfig(Config):
 
 
 class ClientConfig(Config):
-    def __init__(self, name="client", host=""):
+    def __init__(self, name="client", host="localhost"):
         Config.__init__(self, name, host)
         self.gen_cert()
 
@@ -166,6 +166,7 @@ class ClientConfig(Config):
 class StaticConfig(Config):
     def __init__(self, path):
         self.path = path
+        self.host = "localhost"
         self.keys = {}
 
     def gen_cert(self):
@@ -245,22 +246,28 @@ class Simple(TestCase):
         # single test, we speed things up significantly, as we avoid the
         # overhead of creating the certificates and bringing up the server.
 
+        server_url = "kxd://" + self.server.host
+
         # Normal successful case.
         self.server.new_key(
             "k1",
             allowed_clients=[self.client.cert()],
-            allowed_hosts=["localhost"],
+
+            # Depending on the self.server.host, the client may connect to it
+            # from localhost or from another IP; since it is unpredictable we
+            # should allow both.
+            allowed_hosts=["localhost", self.server.host],
         )
-        key = self.client.call(self.server.cert_path(), "kxd://localhost/k1")
+        key = self.client.call(self.server.cert_path(), server_url + "/k1")
         self.assertEqual(key, self.server.keys["k1"])
 
         # Unknown key -> 404.
-        self.assertClientFails("kxd://localhost/k2", "404 Not Found")
+        self.assertClientFails(server_url + "/k2", "404 Not Found")
 
         # No certificates allowed -> 403.
-        self.server.new_key("k3", allowed_hosts=["localhost"])
+        self.server.new_key("k3", allowed_hosts=["localhost", self.server.host])
         self.assertClientFails(
-            "kxd://localhost/k3", "403 Forbidden.*No allowed certificate found"
+            server_url + "/k3", "403 Forbidden.*No allowed certificate found"
         )
 
         # Host not allowed -> 403.
@@ -268,7 +275,7 @@ class Simple(TestCase):
             "k4", allowed_clients=[self.client.cert()], allowed_hosts=[]
         )
         self.assertClientFails(
-            "kxd://localhost/k4", "403 Forbidden.*Host not allowed"
+            server_url + "/k4", "403 Forbidden.*Host not allowed"
         )
 
         # Nothing allowed -> 403.
@@ -276,12 +283,12 @@ class Simple(TestCase):
         # case, as it could be either the host or the cert that are validated
         # first.
         self.server.new_key("k5")
-        self.assertClientFails("kxd://localhost/k5", "403 Forbidden")
+        self.assertClientFails(server_url + "/k5", "403 Forbidden")
 
         # We tell the client to expect the server certificate to be the client
         # one, which is never going to work.
         self.assertClientFails(
-            "kxd://localhost/k1",
+            server_url + "/k1",
             "certificate signed by unknown authority",
             cert_path=self.client.cert_path(),
         )
@@ -333,6 +340,55 @@ class WildcardHostnamesOpenSSL(WildcardHostnamesKxgencert):
     """Tests for certificates with DNSNames='*' generated with OpenSSL."""
 
     _cert_dir = "wildcard_test_certs_openssl"
+
+
+class SpecificHostnames(Simple):
+    """Tests for certificates with specific hostnames.
+
+    These tests check that the server ignores the client certificate's
+    hostname, and that the client validates the server certificate's hostname
+    in scenarios that it is different than `localhost`.
+    """
+
+    def setUp(self):
+        self.server = ServerConfig(host=socket.gethostname())
+        self.client = ClientConfig(host="client-" + os.urandom(8).hex())
+        self.daemon = None
+        self.ca = None  # pylint: disable=invalid-name
+        self.launch_server(self.server)
+
+    def test_minimal(self):
+        self.server.new_key(
+            "k1",
+            allowed_clients=[self.client.cert()],
+            allowed_hosts=["localhost", self.server.host],
+        )
+        key = self.client.call(
+            self.server.cert_path(), "kxd://" + self.server.host + "/k1"
+        )
+        self.assertEqual(key, self.server.keys["k1"])
+
+
+class CertFor127_0_0_1(Simple):
+    """Tests for server certificate for 127.0.0.1 (instead of a name)."""
+
+    def setUp(self):
+        self.server = ServerConfig(host="127.0.0.1")
+        self.client = ClientConfig(host="client-" + os.urandom(8).hex())
+        self.daemon = None
+        self.ca = None  # pylint: disable=invalid-name
+        self.launch_server(self.server)
+
+    def test_minimal(self):
+        self.server.new_key(
+            "k1",
+            allowed_clients=[self.client.cert()],
+            allowed_hosts=["localhost"],
+        )
+        key = self.client.call(
+            self.server.cert_path(), "kxd://" + self.server.host + "/k1"
+        )
+        self.assertEqual(key, self.server.keys["k1"])
 
 
 class Multiples(TestCase):
