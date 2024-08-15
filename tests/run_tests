@@ -107,7 +107,9 @@ class Config:
     def cert(self):
         return read_all(self.path + "/cert.pem")
 
-    def new_key(self, name, allowed_clients=None, allowed_hosts=None):
+    def new_key(
+        self, name, allowed_clients=None, allowed_hosts=None, email_to=None
+    ):
         self.keys[name] = os.urandom(1024)
         key_path = self.path + "/data/" + name + "/"
         if not os.path.isdir(key_path):
@@ -124,6 +126,10 @@ class Config:
             with open(key_path + "/allowed_hosts", "a") as hfd:
                 for host in allowed_hosts:
                     hfd.write(host + "\n")
+
+        if email_to is not None:
+            with open(key_path + "/email_to", "a") as efd:
+                efd.write(email_to + "\n")
 
     def call(self, server_cert, url):
         args = [
@@ -626,6 +632,14 @@ class Hook(TestCase):
         """.strip()
     )
 
+    EMAIL_TO_FILE = textwrap.dedent(
+        """
+        # Comment.
+        me@example.com
+        you@test.net
+        """.strip()
+    )
+
     def write_hook(self, exit_code):
         path = self.server.path + "/hook"
         script = self.HOOK_SCRIPT_TMPL.format(exit_code=exit_code)
@@ -648,6 +662,7 @@ class Hook(TestCase):
 
         hook_out = read_all(self.server.path + "/data/hook-output")
         self.assertIn("CLIENT_CERT_SUBJECT=O=kxd-tests-client", hook_out)
+        self.assertNotIn("EMAIL_TO=", hook_out)
 
         # Failure caused by the hook exiting with error.
         self.write_hook(exit_code=1)
@@ -657,6 +672,21 @@ class Hook(TestCase):
         self.write_hook(exit_code=0)
         os.chmod(self.server.path + "/hook", 0o660)
         self.assertClientFails("kxd://localhost/k1", "Prevented by hook")
+
+    def test_email_to(self):
+        self.write_hook(exit_code=0)
+        self.server.new_key(
+            "k2",
+            allowed_clients=[self.client.cert()],
+            allowed_hosts=["localhost"],
+            email_to=self.EMAIL_TO_FILE,
+        )
+        key = self.client.call(self.server.cert_path(), "kxd://localhost/k2")
+        self.assertEqual(key, self.server.keys["k2"])
+
+        hook_out = read_all(self.server.path + "/data/hook-output")
+        self.assertIn("CLIENT_CERT_SUBJECT=O=kxd-tests-client", hook_out)
+        self.assertIn("EMAIL_TO=me@example.com you@test.net", hook_out)
 
 
 if __name__ == "__main__":
