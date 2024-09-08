@@ -55,7 +55,7 @@ func RunHook(kc *KeyConfig, req *Request, chains [][]*x509.Certificate) error {
 	cmd.Env = append(cmd.Env,
 		fmt.Sprintf("CLIENT_CERT_SIGNATURE=%x", clientCert.Signature))
 	cmd.Env = append(cmd.Env,
-		"CLIENT_CERT_SUBJECT="+NameToString(clientCert.Subject))
+		"CLIENT_CERT_SUBJECT="+clientCert.Subject.String())
 
 	for i, chain := range chains {
 		cmd.Env = append(cmd.Env,
