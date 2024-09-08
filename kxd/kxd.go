@@ -11,6 +11,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -61,16 +62,33 @@ func (req *Request) Printf(format string, a ...interface{}) {
 	logging.Output(2, msg)
 }
 
+var (
+	errInvalidVersion = errors.New("invalid version")
+	errHasDotDot      = errors.New("path contains '..'")
+)
+
 // KeyPath returns the path to the requested key, extracting it from the URL.
 func (req *Request) KeyPath() (string, error) {
-	s := strings.Split(req.URL.Path, "/")
+	// Clean the path to remove any noise.
+	kp := path.Clean(req.URL.Path)
 
-	// We expect the path to be "/v1/path/to/key".
-	if len(s) < 2 || !(s[0] == "" || s[1] == "v1") {
-		return "", fmt.Errorf("invalid path %q", s)
+	// Must start with "/v1/". Doing this after the Clean also ensures there
+	// is something else after the version (because Clean removes trailing
+	// slashes).
+	kp, hasVersion := strings.CutPrefix(kp, "/v1/")
+	if !hasVersion {
+		return "", errInvalidVersion
 	}
 
-	return strings.Join(s[2:], "/"), nil
+	// Be extra paranoid and reject keys with "..", even if they're valid
+	// (e.g. "/v1/x..y" is valid, but will get rejected anyway).
+	// Note requests like this shouldn't reach this stage anyway, due to the
+	// http library processing and the path.Clean above.
+	if strings.Contains(kp, "..") {
+		return "", errHasDotDot
+	}
+
+	return kp, nil
 }
 
 func certToString(cert *x509.Certificate) string {
@@ -109,17 +127,7 @@ func HandlerV1(w http.ResponseWriter, httpreq *http.Request) {
 		return
 	}
 
-	// Be extra paranoid and reject keys with "..", even if they're valid
-	// (e.g. "/v1/x..y" is valid, but will get rejected anyway).
-	if strings.Contains(keyPath, "..") {
-		req.Printf("Rejecting because requested key %q contained '..'",
-			keyPath)
-		req.Printf("Full request: %+v", *req.Request)
-		http.Error(w, "Invalid key path", http.StatusNotAcceptable)
-		return
-	}
-
-	realKeyPath := path.Clean(*dataDir + "/" + keyPath)
+	realKeyPath := path.Join(*dataDir, keyPath)
 	keyConf := NewKeyConfig(realKeyPath)
 
 	exists, err := keyConf.Exists()
