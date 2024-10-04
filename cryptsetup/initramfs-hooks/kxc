@@ -25,5 +25,5 @@ copy_exec /usr/bin/kxc /bin
 
 # Install the configuration into initramfs (if it exists).
 if [ -d /etc/kxc/ ]; then
-	cp -a /etc/kxc/ ${DESTDIR}/etc
+	cp -a /etc/kxc/ "${DESTDIR}/etc"
 fi

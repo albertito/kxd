@@ -22,8 +22,8 @@ for KXC in /bin/kxc /sbin/kxc /usr/bin/kxc /usr/sbin/kxc; do
 done
 
 exec $KXC \
-	--client_cert=$CLIENT_CERT \
-	--client_key=$CLIENT_KEY \
-	--server_cert=$SERVER_CERT \
-	$SERVER_URL
+	"--client_cert=$CLIENT_CERT" \
+	"--client_key=$CLIENT_KEY" \
+	"--server_cert=$SERVER_CERT" \
+	"$SERVER_URL"
 

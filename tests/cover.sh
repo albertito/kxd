@@ -2,7 +2,7 @@
 
 set -e
 
-cd "$(realpath `dirname ${0}`)/../"
+cd "$( realpath "$(dirname "${0}")" )/../"
 
 make GOFLAGS="-cover -covermode=count"
 
