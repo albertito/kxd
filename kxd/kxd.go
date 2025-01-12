@@ -93,9 +93,9 @@ func (req *Request) KeyPath() (string, error) {
 
 func certToString(cert *x509.Certificate) string {
 	return fmt.Sprintf(
-		"(0x%.8s ou:%s)",
+		"(0x%.8s %s)",
 		fmt.Sprintf("%x", cert.Signature),
-		cert.Subject.OrganizationalUnit)
+		cert.Subject.ToRDNSequence())
 }
 
 // ChainToString makes a human-readable string out of the given certificate
