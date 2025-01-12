@@ -164,9 +164,13 @@ func HandlerV1(w http.ResponseWriter, httpreq *http.Request) {
 		return
 	}
 
-	validChains := keyConf.IsAnyCertAllowed(req.TLS.PeerCertificates)
+	validChains, errs := keyConf.IsAnyCertAllowed(req.TLS.PeerCertificates)
 	if validChains == nil {
-		req.Printf("No allowed certificate found")
+		req.Printf("No allowed certificate found (checked %d certs)",
+			len(errs))
+		for i, e := range errs {
+			req.Printf("  %d: %s %v", i, certToString(e.Cert), e.Err)
+		}
 		http.Error(w, "No allowed certificate found",
 			http.StatusForbidden)
 		return

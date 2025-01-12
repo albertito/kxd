@@ -129,20 +129,27 @@ func (kc *KeyConfig) LoadAllowedHosts() error {
 	return nil
 }
 
+type verifyError struct {
+	Cert *x509.Certificate
+	Err  error
+}
+
 // IsAnyCertAllowed checks if any of the given certificates is allowed to
 // access this key. If so, it returns the chain for each of them.
 func (kc *KeyConfig) IsAnyCertAllowed(
-	certs []*x509.Certificate) [][]*x509.Certificate {
+	certs []*x509.Certificate) ([][]*x509.Certificate, []verifyError) {
 	opts := x509.VerifyOptions{
 		Roots: kc.allowedClientCerts,
 	}
+	errs := []verifyError{}
 	for _, cert := range certs {
 		chains, err := cert.Verify(opts)
 		if err == nil && len(chains) > 0 {
-			return chains
+			return chains, nil
 		}
+		errs = append(errs, verifyError{cert, err})
 	}
-	return nil
+	return nil, errs
 }
 
 // IsHostAllowed checks if the given host is allowed to access this key.
