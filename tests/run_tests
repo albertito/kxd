@@ -809,5 +809,12 @@ class Emails(TestCase):
         self.assertEqual(self.emails, [])
 
 
+# Test kxd --version.
+class VersionFlag(TestCase):
+    def test_version(self):
+        output = subprocess.check_output([BINS + "/kxd", "--version"])
+        self.assertRegex(output.decode(), r"kxd version .+ (.+)")
+
+
 if __name__ == "__main__":
     unittest.main()

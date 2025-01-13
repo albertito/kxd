@@ -21,8 +21,10 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"runtime/debug"
 	"strings"
 	"syscall"
+	"time"
 )
 
 var port = flag.Int(
@@ -44,6 +46,8 @@ var logFile = flag.String(
 var hookPath = flag.String(
 	"hook", "/etc/kxd/hook",
 	"Hook to run before authorizing keys (skipped if it doesn't exist)")
+var versionFlag = flag.Bool(
+	"version", false, "Print version and exit")
 
 // Logger we will use to log entries.
 var logging *log.Logger
@@ -244,10 +248,31 @@ func signalHandler() {
 	}
 }
 
+func version() string {
+	info, _ := debug.ReadBuildInfo()
+	rev := info.Main.Version
+	ts := time.Time{}
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			rev = s.Value
+		case "vcs.time":
+			ts, _ = time.Parse(time.RFC3339, s.Value)
+		}
+	}
+	return fmt.Sprintf("kxd version %s (%s)", rev, ts)
+}
+
 func main() {
 	flag.Parse()
 
+	if *versionFlag {
+		fmt.Println(version())
+		os.Exit(0)
+	}
+
 	initLog()
+	logging.Print(version())
 
 	go signalHandler()
 
