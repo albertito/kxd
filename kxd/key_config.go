@@ -107,7 +107,7 @@ func (kc *KeyConfig) LoadAllowedHosts() error {
 
 	// If the file is there, we want our array to exist, even if it's
 	// empty, to avoid authorizing everyone on an empty file (which means
-	// authorize noone).
+	// authorize no one).
 	kc.allowedHosts = make([]string, 1)
 	for _, line := range strings.Split(string(contents), "\n") {
 		line = strings.TrimSpace(line)

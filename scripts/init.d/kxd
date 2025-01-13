@@ -13,7 +13,7 @@
 DAEMON=/usr/bin/kxd
 DEFAULTS_FILE=/etc/default/kxd
 
-# These variables can be overriden in the defaults file.
+# These variables can be overridden in the defaults file.
 DISABLE=
 OPTS=''
 PID_FILE=/var/run/kxd.pid

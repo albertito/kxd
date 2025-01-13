@@ -303,7 +303,7 @@ class TestCase(unittest.TestCase):
 
 
 class Simple(TestCase):
-    """Simple test cases for common (mis)configurations."""
+    """Simple test cases for common configurations and errors."""
 
     def test_simple(self):
         # There's no need to split these up; by doing all these within a
